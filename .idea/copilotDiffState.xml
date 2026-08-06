@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CopilotDiffPersistence">
+    <option name="pendingDiffs">
+      <map>
+        <entry key="$PROJECT_DIR$/.github/workflows/deploy.yml">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/.github/workflows/deploy.yml" />
+              <option name="updatedContent" value="name: Deploy to GitHub Pages&#10;&#10;on:&#10;  push:&#10;    branches: [ main ]&#10;&#10;permissions:&#10;  contents: read&#10;  pages: write&#10;  id-token: write&#10;&#10;concurrency:&#10;  group: &quot;pages&quot;&#10;  cancel-in-progress: false&#10;&#10;jobs:&#10;  deploy:&#10;    runs-on: ubuntu-latest&#10;    environment:&#10;      name: github-pages&#10;      url: ${{ steps.deployment.outputs.page_url }}&#10;    steps:&#10;      - name: Checkout&#10;        uses: actions/checkout@v4&#10;&#10;      - name: Setup Pages&#10;        uses: actions/configure-pages@v4&#10;&#10;      - name: Upload artifact&#10;        uses: actions/upload-pages-artifact@v3&#10;        with:&#10;          path: './navix-app'&#10;&#10;      - name: Deploy to GitHub Pages&#10;        id: deployment&#10;        uses: actions/deploy-pages@v4&#10;" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+</project>
