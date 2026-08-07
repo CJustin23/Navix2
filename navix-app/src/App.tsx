@@ -252,6 +252,182 @@ const interviewQuestionsMap: Record<string, string[]> = {
   ]
 };
 
+type SimulationCriterion = {
+  name: string;
+  score: number;
+  maxScore: number;
+  feedback: string;
+};
+
+type SimulationEvaluation = {
+  score: number;
+  criteria: SimulationCriterion[];
+  strengths: string[];
+  improvements: string[];
+  overall: string;
+  referenceAnswer: string;
+  source: 'ai' | 'local';
+};
+
+type SimulationLeaderboardEntry = {
+  name: string;
+  score: number;
+  badge?: string;
+};
+
+const SIMULATION_STOP_WORDS = new Set([
+  'va', 'hoac', 'nhung', 'cua', 'cho', 'voi', 'the', 'mot', 'cac', 'trong', 'de', 'duoc', 'co', 'la', 'thi', 'o', 'tai', 'tu', 'den', 'nay', 'do', 'ban', 'minh', 'nguoi', 'viec', 'dua', 'theo'
+]);
+
+const SIMULATION_RUBRIC = [
+  { name: 'Đúng yêu cầu đề bài', maxScore: 40 },
+  { name: 'Lập luận & tổ chức', maxScore: 30 },
+  { name: 'Sáng tạo & khả thi', maxScore: 20 },
+  { name: 'Trình bày & chính tả', maxScore: 10 }
+];
+
+function normalizeVietnameseText(text: string) {
+  return (text || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s%.-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function clampScore(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, Math.round(value)));
+}
+
+function uniqueValues(values: string[]) {
+  return Array.from(new Set(values.filter(Boolean)));
+}
+
+function extractKeywordsFromText(...parts: Array<string | undefined>) {
+  const words = parts
+    .filter(Boolean)
+    .flatMap(part => normalizeVietnameseText(part as string).split(' '))
+    .filter(word => word.length > 3 && !SIMULATION_STOP_WORDS.has(word) && !/^\d+$/.test(word));
+  return uniqueValues(words).slice(0, 24);
+}
+
+function getSimulationScoreLabel(score: number) {
+  if (score >= 90) return 'Xuất sắc';
+  if (score >= 80) return 'Rất tốt';
+  if (score >= 70) return 'Tốt';
+  if (score >= 60) return 'Khá';
+  if (score >= 50) return 'Đạt';
+  return 'Cần cải thiện';
+}
+
+function buildSimulationReferenceAnswer(simulation: any) {
+  const taskLines = (simulation?.tasks || []).map((task: string, index: number) => `${index + 1}. ${task}`).join('\n');
+  return [
+    `Bài làm nên bám sát mô tả nhiệm vụ của ${simulation?.title || 'đề bài'}.`,
+    taskLines ? `Các ý bắt buộc cần có:\n${taskLines}` : '',
+    `Phần kết luận cần chốt rõ phương án xử lý, nêu cơ sở từ dữ liệu đề và trình bày mạch lạc theo từng ý lớn.`,
+    `Nếu đề yêu cầu số liệu, hãy nêu con số cụ thể; nếu đề yêu cầu giải pháp, hãy tách rõ nguyên nhân, phương án và tác động kỳ vọng.`
+  ].filter(Boolean).join('\n\n');
+}
+
+function buildLocalSimulationEvaluation(simulation: any, answerText: string): SimulationEvaluation {
+  const normalizedAnswer = normalizeVietnameseText(answerText);
+  const keywords = extractKeywordsFromText(simulation?.title, simulation?.company, simulation?.field, simulation?.position, simulation?.desc, ...(simulation?.tasks || []));
+  const matchedKeywords = keywords.filter(keyword => normalizedAnswer.includes(keyword));
+  const coverage = keywords.length ? matchedKeywords.length / keywords.length : 0;
+
+  const paragraphs = answerText.split(/\n\s*\n/).map(part => part.trim()).filter(Boolean);
+  const bulletLines = answerText.split('\n').filter(line => /^\s*[-•*]/.test(line));
+  const numberMentions = (answerText.match(/\d+/g) || []).length;
+  const creativeSignals = ['ý tưởng', 'giải pháp', 'kế hoạch', 'insight', 'phương án', 'cta', 'kpi', 'ngân sách', 'triển khai', 'khả thi', 'thông điệp'].filter(word => normalizedAnswer.includes(word)).length;
+
+  const requirementScore = clampScore(12 + coverage * 28 + Math.min(numberMentions, 4) * 0.5, 0, 40);
+  const logicScore = clampScore(10 + Math.min(paragraphs.length, 4) * 4 + Math.min(bulletLines.length, 4) * 3 + coverage * 6, 0, 30);
+  const creativityScore = clampScore(6 + creativeSignals * 2.2 + (normalizedAnswer.includes('ví dụ') ? 2 : 0), 0, 20);
+  const presentationScore = clampScore(4 + Math.min(answerText.length / 140, 4) + (paragraphs.length >= 2 ? 2 : 0) + (answerText.includes('.') ? 1 : 0), 0, 10);
+  const totalScore = requirementScore + logicScore + creativityScore + presentationScore;
+
+  const criteria: SimulationCriterion[] = [
+    {
+      name: SIMULATION_RUBRIC[0].name,
+      score: requirementScore,
+      maxScore: SIMULATION_RUBRIC[0].maxScore,
+      feedback: matchedKeywords.length
+        ? `Bài làm đã chạm ${matchedKeywords.length}/${keywords.length || 1} ý quan trọng của đề.`
+        : 'Bài làm chưa bám đủ các ý bắt buộc trong mô tả đề.'
+    },
+    {
+      name: SIMULATION_RUBRIC[1].name,
+      score: logicScore,
+      maxScore: SIMULATION_RUBRIC[1].maxScore,
+      feedback: paragraphs.length >= 2
+        ? 'Bố cục có nhiều ý tách đoạn, luồng lập luận tương đối dễ theo dõi.'
+        : 'Nên chia nhỏ ý hơn để AI dễ kiểm tra lập luận và trình bày.'
+    },
+    {
+      name: SIMULATION_RUBRIC[2].name,
+      score: creativityScore,
+      maxScore: SIMULATION_RUBRIC[2].maxScore,
+      feedback: creativeSignals >= 3
+        ? 'Có nhiều dấu hiệu cho thấy bài làm đã chủ động đề xuất giải pháp riêng.'
+        : 'Có thể thêm ý tưởng hoặc phương án cụ thể để bài làm thuyết phục hơn.'
+    },
+    {
+      name: SIMULATION_RUBRIC[3].name,
+      score: presentationScore,
+      maxScore: SIMULATION_RUBRIC[3].maxScore,
+      feedback: answerText.length > 400
+        ? 'Độ dài và cách triển khai nhìn chung phù hợp với một bài mô phỏng hoàn chỉnh.'
+        : 'Nên bổ sung chi tiết và ví dụ để bài làm đầy đủ hơn.'
+    }
+  ];
+
+  const strengths = [
+    requirementScore >= 24 ? 'Bám được một phần các ý cốt lõi của đề bài.' : 'Thể hiện được hướng xử lý cơ bản của đề.',
+    logicScore >= 18 ? 'Cách trình bày có cấu trúc và dễ đọc.' : 'Có cố gắng tổ chức ý theo từng đoạn.'
+  ];
+
+  const improvements = [
+    requirementScore < 24 ? 'Bổ sung thêm các ý bắt buộc còn thiếu trong đề.' : 'Đào sâu hơn vào các ý quan trọng để tăng độ thuyết phục.',
+    creativityScore < 12 ? 'Thêm giải pháp hoặc góc nhìn mới thay vì chỉ diễn giải lại đề.' : 'Làm rõ hơn cơ sở của từng giải pháp bằng dữ liệu hoặc ví dụ.',
+    presentationScore < 7 ? 'Rút gọn những phần lan man và chia đoạn rõ hơn.' : 'Kiểm tra lại chính tả, số liệu và tính nhất quán.'
+  ];
+
+  return {
+    score: totalScore,
+    criteria,
+    strengths,
+    improvements,
+    overall: `${getSimulationScoreLabel(totalScore)}. Bài làm cho thấy bạn đã nắm được một phần yêu cầu của đề, nhưng vẫn cần cải thiện để làm rõ lập luận, tăng độ cụ thể và bám sát tiêu chí chấm hơn.`,
+    referenceAnswer: buildSimulationReferenceAnswer(simulation),
+    source: 'local'
+  };
+}
+
+function loadSimulationBestScores() {
+  if (typeof window === 'undefined') return {} as Record<string, number>;
+  try {
+    const stored = window.localStorage.getItem('navix-sim-best-scores');
+    return stored ? JSON.parse(stored) as Record<string, number> : {};
+  } catch {
+    return {} as Record<string, number>;
+  }
+}
+
+function buildSimulationLeaderboard(bestScore: number) {
+  const entries: SimulationLeaderboardEntry[] = [
+    { name: 'Bạn', score: bestScore, badge: 'Hồ sơ của bạn' },
+    { name: 'Nguyễn Minh Anh', score: 96, badge: 'Top 1' },
+    { name: 'Trần Minh Đức', score: 92, badge: 'Top 2' },
+    { name: 'Lê Hoàng Nam', score: 89, badge: 'Top 3' },
+    { name: 'Phạm Thu Trang', score: 85 },
+    { name: 'Võ Quang Huy', score: 82 }
+  ];
+
+  return [...entries].sort((a, b) => b.score - a.score);
+}
+
 export default function App() {
   // Navigation & Page State
   const [currentPage, setCurrentPage] = useState<string>('home'); // home, register, login, student-dashboard, enterprise-dashboard
@@ -386,7 +562,11 @@ export default function App() {
   // Job Simulation Workspace state
   const [activeSimModal, setActiveSimModal] = useState<any | null>(null);
   const [simAnswerText, setSimAnswerText] = useState<string>('');
-  const [simEvaluationResult, setSimEvaluationResult] = useState<any | null>(null);
+  const [simEvaluationResult, setSimEvaluationResult] = useState<SimulationEvaluation | null>(null);
+  const [simSubmitting, setSimSubmitting] = useState<boolean>(false);
+  const [simSubmissionError, setSimSubmissionError] = useState<string>('');
+  const [simLeaderboardExpanded, setSimLeaderboardExpanded] = useState<boolean>(false);
+  const [simBestScores, setSimBestScores] = useState<Record<string, number>>(loadSimulationBestScores);
 
   // CV Builder & ATS state
   const [cvTab, setCvTab] = useState<'builder' | 'ats'>('builder');
@@ -431,23 +611,18 @@ export default function App() {
     setHintText('');
     setSampleAnswer('');
     try {
-      if (useAI && openAIKey) {
-        // call OpenAI chat completion (browser fetch)
-        const prompt = `Bạn là chuyên gia phỏng vấn. Căn cứ vào câu hỏi: "${question}", vị trí: ${selectedPosition} và lĩnh vực: ${selectedDomain},
-Hãy trả về gợi ý trả lời ngắn theo phương pháp STAR, liệt kê 3 điểm cần nhấn mạnh, và một mẫu trả lời ngắn (2-3 câu). Trả về ở dạng văn bản.`;
-        const res = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${openAIKey}` },
-          body: JSON.stringify({ model: 'gpt-3.5-turbo', messages: [{ role: 'user', content: prompt }], max_tokens: 500 })
+      if (useAI) {
+        const aiResult = await callNavixAI({
+          mode: 'star-hint',
+          question,
+          context: {
+            selectedPosition,
+            selectedDomain,
+            selectedEnterprise
+          }
         });
-        if (!res.ok) throw new Error(`OpenAI error ${res.status}`);
-        const data = await res.json();
-        const content = data.choices?.[0]?.message?.content || '';
-        // naive split: assume sample answer is last paragraph
-        setHintText(content);
-        // attempt to extract last paragraph as sample
-        const parts = content.split('\n\n');
-        setSampleAnswer(parts[parts.length - 1] || '');
+        setHintText(aiResult.text || '');
+        setSampleAnswer(aiResult.sampleAnswer || '');
       } else {
         const out = localGenerateHint();
         setHintText(`STAR: ${out.star}\n\nNhững điểm cần nêu:\n- ${out.keyPoints.join('\n- ')}`);
@@ -457,6 +632,51 @@ Hãy trả về gợi ý trả lời ngắn theo phương pháp STAR, liệt kê
       setHintText('Không thể tạo gợi ý tự động. Vui lòng thử lại hoặc cung cấp OpenAI API Key.\n' + (e?.message || ''));
     } finally {
       setHintLoading(false);
+    }
+  };
+
+  const evaluateSimulationSubmission = async (simulation: any, answerText: string) => {
+    try {
+      const response = await fetch('/api/score-simulation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: simulation?.title,
+          company: simulation?.company,
+          field: simulation?.field,
+          position: simulation?.position,
+          desc: simulation?.desc,
+          tasks: simulation?.tasks || [],
+          answer: answerText
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`AI chấm bài chưa phản hồi (${response.status})`);
+      }
+
+      const payload = await response.json();
+      const fallback = buildLocalSimulationEvaluation(simulation, answerText);
+      const criteria = Array.isArray(payload.criteria)
+        ? payload.criteria.map((criterion: any, index: number) => ({
+            name: criterion?.name || SIMULATION_RUBRIC[index]?.name || `Tiêu chí ${index + 1}`,
+            score: clampScore(Number(criterion?.score ?? 0), 0, Number(criterion?.maxScore ?? SIMULATION_RUBRIC[index]?.maxScore ?? 10)),
+            maxScore: Number(criterion?.maxScore ?? SIMULATION_RUBRIC[index]?.maxScore ?? 10),
+            feedback: String(criterion?.feedback || '')
+          }))
+        : fallback.criteria;
+
+      return {
+        score: clampScore(Number(payload.score ?? payload.totalScore ?? fallback.score), 0, 100),
+        criteria,
+        strengths: Array.isArray(payload.strengths) && payload.strengths.length ? payload.strengths : fallback.strengths,
+        improvements: Array.isArray(payload.improvements) && payload.improvements.length ? payload.improvements : fallback.improvements,
+        overall: String(payload.overall || fallback.overall),
+        referenceAnswer: String(payload.referenceAnswer || fallback.referenceAnswer),
+        source: payload.source === 'ai' ? 'ai' : 'local'
+      } satisfies SimulationEvaluation;
+    } catch {
+      return buildLocalSimulationEvaluation(simulation, answerText);
     }
   };
 
@@ -501,6 +721,23 @@ Hãy trả về gợi ý trả lời ngắn theo phương pháp STAR, liệt kê
     }
   ]);
   const [chatInput, setChatInput] = useState<string>('Tôi học ngành CNTT, muốn ứng tuyển vị trí Front-end Developer, hãy thiết kế lộ trình cá nhân cho tôi');
+  const [chatLoading, setChatLoading] = useState<boolean>(false);
+  const [interviewAiFeedback, setInterviewAiFeedback] = useState<any | null>(null);
+  const [interviewAiFeedbackLoading, setInterviewAiFeedbackLoading] = useState<boolean>(false);
+
+  const callNavixAI = async (payload: Record<string, any>) => {
+    const response = await fetch('/api/navix-ai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      throw new Error(`AI service error ${response.status}`);
+    }
+
+    return response.json();
+  };
 
   // Helper Login Handle
   const handleLoginSubmit = (e: React.FormEvent) => {
@@ -534,18 +771,43 @@ Hãy trả về gợi ý trả lời ngắn theo phương pháp STAR, liệt kê
   };
 
   // Chat AI response trigger logic
-  const handleSendChat = () => {
-    if (!chatInput.trim()) return;
+  const handleSendChat = async () => {
+    if (!chatInput.trim() || chatLoading) return;
     const userMsg = chatInput;
     setChatMessages(prev => [...prev, { sender: 'user', text: userMsg }]);
     setChatInput('');
+    setChatLoading(true);
 
-    setTimeout(() => {
+    try {
+      const aiResult = await callNavixAI({
+        mode: 'roadmap-chat',
+        message: userMsg,
+        context: {
+          selectedPosition,
+          selectedDomain,
+          selectedEnterprise,
+          chatHistory: chatMessages.slice(-4)
+        }
+      });
+
       setChatMessages(prev => [
         ...prev,
         {
           sender: 'ai',
-          text: `Cảm ơn bạn! Dựa trên vị trí **Front-end Developer** bạn mong muốn, NAVIX đã đối chiếu với chuẩn JD doanh nghiệp:`,
+          text: aiResult.text,
+          actionBtns: aiResult.actionBtns || [
+            { label: 'Trải nghiệm ngay (Mô phỏng)', targetTab: 'simulation' },
+            { label: 'Xây dựng CV ngay', targetTab: 'cv' },
+            { label: 'Luyện tập phỏng vấn', targetTab: 'interview' }
+          ]
+        }
+      ]);
+    } catch {
+      setChatMessages(prev => [
+        ...prev,
+        {
+          sender: 'ai',
+          text: `Mình đã nhận được mục tiêu của bạn. Với vị trí ${selectedPosition}, mình khuyên bạn ưu tiên 3 việc: 1) làm rõ kỹ năng cốt lõi, 2) chuẩn hóa CV theo JD, 3) luyện 1 bài mô phỏng thực tế trước khi nộp hồ sơ.`,
           actionBtns: [
             { label: 'Trải nghiệm ngay (Mô phỏng)', targetTab: 'simulation' },
             { label: 'Xây dựng CV ngay', targetTab: 'cv' },
@@ -553,7 +815,36 @@ Hãy trả về gợi ý trả lời ngắn theo phương pháp STAR, liệt kê
           ]
         }
       ]);
-    }, 800);
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  const evaluateInterviewAnswer = async (question: string, answer: string) => {
+    try {
+      const aiResult = await callNavixAI({
+        mode: 'interview-feedback',
+        question,
+        answer,
+        context: {
+          selectedDomain,
+          selectedPosition,
+          selectedEnterprise
+        }
+      });
+
+      return aiResult;
+    } catch {
+      const answerLength = answer.trim().length;
+      return {
+        score: answerLength > 120 ? 85 : answerLength > 50 ? 72 : 60,
+        strengths: answerLength > 50 ? ['Có liên hệ được với vị trí đang ứng tuyển.', 'Trình bày có cấu trúc cơ bản.'] : ['Có cố gắng trả lời đúng câu hỏi.'],
+        improvements: answerLength > 50 ? ['Bổ sung ví dụ thực tế và kết quả định lượng.', 'Nêu rõ vai trò cá nhân hơn.'] : ['Cần mở rộng câu trả lời theo STAR.', 'Thêm ví dụ và số liệu cụ thể.'],
+        overall: 'Câu trả lời có hướng đúng, nhưng cần chi tiết hơn để tạo ấn tượng với nhà tuyển dụng.',
+        referenceAnswer: 'Hãy mở đầu bằng bối cảnh ngắn, sau đó nêu nhiệm vụ bạn đảm nhận, cách bạn xử lý và kết quả cụ thể bạn đạt được.',
+        source: 'local'
+      };
+    }
   };
 
   // Allow external navigation via URL query params so an iframe (the Compare page)
@@ -591,6 +882,22 @@ Hãy trả về gợi ý trả lời ngắn theo phương pháp STAR, liệt kê
       setShowOTPModal(false);
     }
   }, [currentPage]);
+
+  React.useEffect(() => {
+    try {
+      window.localStorage.setItem('navix-sim-best-scores', JSON.stringify(simBestScores));
+    } catch {
+      // ignore storage issues
+    }
+  }, [simBestScores]);
+
+  React.useEffect(() => {
+    if (!activeSimModal) {
+      setSimSubmitting(false);
+      setSimSubmissionError('');
+      setSimLeaderboardExpanded(false);
+    }
+  }, [activeSimModal]);
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-main)' }}>
@@ -1386,20 +1693,21 @@ Hãy trả về gợi ý trả lời ngắn theo phương pháp STAR, liệt kê
                       CHỨNG CHỈ
                     </h3>
 
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ padding: '16px 20px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '16px' }}>
-                        <div style={{ width: '48px', height: '48px', borderRadius: '8px', backgroundColor: 'var(--primary-light)', border: '1px solid var(--primary-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
-                          <Award size={24} />
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '20px', alignItems: 'center', background: 'linear-gradient(135deg, #0f3d27 0%, #14532d 55%, #1f7a46 100%)', borderRadius: '24px', padding: '24px', color: '#fff', boxShadow: '0 18px 40px rgba(15, 61, 39, 0.16)' }}>
+                      <div>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 12px', borderRadius: '999px', backgroundColor: 'rgba(255,255,255,0.12)', fontSize: '12px', fontWeight: 700, marginBottom: '14px' }}>
+                          <Award size={14} /> Certificate Spotlight
                         </div>
-                        <div>
-                          <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-main)' }}>Career Exploration - NAVIX</div>
-                          <div style={{ fontSize: '12px', color: 'var(--primary)', fontWeight: 600 }}>✓ Đã hoàn thành</div>
-                          <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Ngày cấp: 20/05/2025</div>
+                        <div style={{ fontSize: '26px', fontWeight: 900, marginBottom: '6px', lineHeight: 1.15 }}>Career Exploration - NAVIX</div>
+                        <div style={{ fontSize: '13px', opacity: 0.88, marginBottom: '14px' }}>Hoàn thành hành trình khám phá nghề nghiệp và nhận chứng chỉ xác thực từ NAVIX AI.</div>
+                        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                          <span style={{ padding: '7px 12px', borderRadius: '999px', backgroundColor: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.14)', fontSize: '12px', fontWeight: 700 }}>Cấp ngày: 20/05/2025</span>
+                          <span style={{ padding: '7px 12px', borderRadius: '999px', backgroundColor: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.14)', fontSize: '12px', fontWeight: 700 }}>Điểm: 89/100</span>
                         </div>
                       </div>
 
-                      <button onClick={() => setStudentTab('cert')} style={{ fontSize: '13px', fontWeight: 700, color: 'var(--primary)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                        Xem tất cả chứng chỉ <ChevronRight size={16} />
+                      <button onClick={() => setStudentTab('cert')} style={{ minWidth: '160px', padding: '12px 18px', borderRadius: '999px', backgroundColor: '#fef3c7', color: '#14532d', fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '4px', boxShadow: '0 8px 18px rgba(0,0,0,0.12)' }}>
+                        Xem chứng chỉ <ChevronRight size={16} />
                       </button>
                     </div>
                   </div>
@@ -1688,7 +1996,26 @@ Hãy trả về gợi ý trả lời ngắn theo phương pháp STAR, liệt kê
                           >
                             ← {currentInterviewQuestionIdx > 0 ? 'Câu trước' : 'Quay lại'}
                           </button>
-                          <button onClick={() => setInterviewStep('feedback')} style={{ padding: '12px 28px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 700, boxShadow: '0 4px 12px rgba(20,83,45,0.2)' }}>
+                          <button
+                            onClick={async () => {
+                              const currentAnswer = interviewAnswersList[currentInterviewQuestionIdx] || '';
+                              if (!currentAnswer.trim()) {
+                                alert('Vui lòng nhập câu trả lời trước khi gửi.');
+                                return;
+                              }
+                              setInterviewAiFeedbackLoading(true);
+                              setInterviewAiFeedback(null);
+                              try {
+                                const currentQuestion = currentQuestions[currentInterviewQuestionIdx];
+                                const evaluation = await evaluateInterviewAnswer(currentQuestion, currentAnswer);
+                                setInterviewAiFeedback(evaluation);
+                                setInterviewStep('feedback');
+                              } finally {
+                                setInterviewAiFeedbackLoading(false);
+                              }
+                            }}
+                            style={{ padding: '12px 28px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 700, boxShadow: '0 4px 12px rgba(20,83,45,0.2)' }}
+                          >
                             Gửi câu trả lời câu {currentInterviewQuestionIdx + 1}
                           </button>
                         </div>
@@ -1701,12 +2028,20 @@ Hãy trả về gợi ý trả lời ngắn theo phương pháp STAR, liệt kê
                     const currentQuestions = interviewQuestionsMap[selectedDomain] || interviewQuestionsMap['Nhân sự'];
                     const isLastQ = currentInterviewQuestionIdx >= currentQuestions.length - 1;
                     const userAns = interviewAnswersList[currentInterviewQuestionIdx] || '';
+                    const feedbackData = interviewAiFeedback || {
+                      score: userAns.length > 50 ? 78 : 65,
+                      strengths: [userAns.length > 50 ? 'Có trả lời đúng trọng tâm của câu hỏi.' : 'Có nỗ lực trả lời câu hỏi.'],
+                      improvements: [userAns.length > 50 ? 'Bổ sung số liệu hoặc ví dụ cụ thể hơn.' : 'Cần mở rộng câu trả lời theo STAR và thêm ví dụ.'],
+                      overall: userAns ? 'Câu trả lời có nền tảng tốt, nhưng vẫn cần cụ thể và thuyết phục hơn.' : 'Bạn chưa nhập câu trả lời chi tiết. Khuyến nghị trả lời theo phương pháp STAR.',
+                      referenceAnswer: `S - Nêu bối cảnh liên quan tới câu hỏi ${currentInterviewQuestionIdx + 1}.\nT - Mô tả nhiệm vụ hoặc mục tiêu của bạn.\nA - Trình bày hành động bạn đã làm.\nR - Chốt lại kết quả và bài học.`,
+                      source: 'local'
+                    };
                     return (
                       <div style={{ backgroundColor: '#fff', padding: '40px', borderRadius: 'var(--radius-xl)', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '28px' }}>
                           <div style={{ width: '72px', height: '72px', borderRadius: '50%', backgroundColor: 'var(--primary-light)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                            <span style={{ fontSize: '22px', fontWeight: 800, color: 'var(--primary)', lineHeight: 1 }}>{userAns.length > 50 ? '8.5' : '7.0'}</span>
-                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>/ 10</span>
+                            <span style={{ fontSize: '22px', fontWeight: 800, color: 'var(--primary)', lineHeight: 1 }}>{feedbackData.score}</span>
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>/ 100</span>
                           </div>
                           <div>
                             <h3 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--primary)' }}>AI đánh giá câu trả lời (Câu {currentInterviewQuestionIdx + 1}/{currentQuestions.length})</h3>
@@ -1714,11 +2049,17 @@ Hãy trả về gợi ý trả lời ngắn theo phương pháp STAR, liệt kê
                           </div>
                         </div>
 
+                        {interviewAiFeedbackLoading ? (
+                          <div style={{ padding: '16px 18px', borderRadius: '10px', backgroundColor: 'var(--primary-light)', color: 'var(--primary)', fontSize: '13px', fontWeight: 700, marginBottom: '20px' }}>
+                            AI đang chấm câu trả lời, bạn kiên nhẫn chờ xíu nha
+                          </div>
+                        ) : null}
+
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '28px' }}>
                           {[
-                            { title: 'NHẬN XÉT NỘI DUNG', text: userAns ? `Câu trả lời của bạn có liên hệ tốt tới công việc. Bạn đã nêu được thông tin chính nhưng cần bổ sung số liệu minh chứng.` : `Bạn chưa nhập câu trả lời chi tiết. Khuyến nghị trả lời theo phương pháp STAR.` },
-                            { title: 'KỸ NĂNG DIỄN ĐẠT', text: 'Cấu trúc rõ ràng, tư duy tốt. Nên bổ sung thêm kết quả bài học đo lường được.' },
-                            { title: 'GỢI Ý CẢI THIỆN', text: 'Nên nhấn mạnh vai trò cá nhân và cách bạn vượt qua thử thách.' }
+                            { title: 'NHẬN XÉT NỘI DUNG', text: feedbackData.overall },
+                            { title: 'ĐIỂM MẠNH', text: feedbackData.strengths.join(' ') },
+                            { title: 'CẦN CẢI THIỆN', text: feedbackData.improvements.join(' ') }
                           ].map((section, i) => (
                             <div key={i}>
                               <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--primary)', letterSpacing: '0.5px', marginBottom: '6px' }}>{section.title}</div>
@@ -1728,7 +2069,7 @@ Hãy trả về gợi ý trả lời ngắn theo phương pháp STAR, liệt kê
                           <div>
                             <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--primary)', letterSpacing: '0.5px', marginBottom: '6px' }}>CÂU TRẢ LỜI THAM KHẢO SCHEME STAR</div>
                             <div style={{ padding: '16px', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--primary-light)', fontSize: '14px', color: 'var(--text-main)', lineHeight: 1.6, fontStyle: 'italic' }}>
-                              "Khi đối mặt với yêu cầu này (Situation), nhiệm vụ chính của tôi là... (Task). Tôi đã chủ động làm việc với các bên liên quan và áp dụng giải pháp X (Action), kết quả đạt được tăng 25% hiệu quả (Result)."
+                              {feedbackData.referenceAnswer}
                             </div>
                           </div>
                         </div>
@@ -1739,6 +2080,7 @@ Hãy trả về gợi ý trả lời ngắn theo phương pháp STAR, liệt kê
                               if (isLastQ) {
                                 setInterviewStep('summary');
                               } else {
+                                setInterviewAiFeedback(null);
                                 setCurrentInterviewQuestionIdx(currentInterviewQuestionIdx + 1);
                                 setInterviewStep('question');
                               }
@@ -1880,7 +2222,7 @@ Hãy trả về gợi ý trả lời ngắn theo phương pháp STAR, liệt kê
                         </div>
 
                         <button
-                          onClick={() => { setActiveSimModal(sim); setSimAnswerText(''); setSimEvaluationResult(null); }}
+                          onClick={() => { setActiveSimModal(sim); setSimAnswerText(''); setSimEvaluationResult(null); setSimSubmitting(false); setSimSubmissionError(''); setSimLeaderboardExpanded(false); }}
                           style={{ padding: '12px 20px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 700, fontSize: '14px', width: '100%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                         >
                           Bắt đầu mô phỏng ngay <ArrowRight size={16} />
@@ -2094,15 +2436,40 @@ Hãy trả về gợi ý trả lời ngắn theo phương pháp STAR, liệt kê
                     <div style={{ flex: 1, padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px' }}>
                       {chatMessages.map((msg, idx) => (
                         <div key={idx} style={{ alignSelf: msg.sender === 'user' ? 'flex-end' : 'flex-start', maxWidth: '80%' }}>
-                          <div style={{ padding: '12px 18px', borderRadius: '16px', backgroundColor: msg.sender === 'user' ? 'var(--primary)' : 'var(--bg-main)', color: msg.sender === 'user' ? '#fff' : 'var(--text-main)', fontSize: '14px', lineHeight: 1.6 }}>
+                          <div style={{ padding: '12px 18px', borderRadius: '16px', backgroundColor: msg.sender === 'user' ? 'var(--primary)' : 'var(--bg-main)', color: msg.sender === 'user' ? '#fff' : 'var(--text-main)', fontSize: '14px', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
                             {msg.text}
                           </div>
+                          {msg.sender === 'ai' && msg.actionBtns && msg.actionBtns.length > 0 && (
+                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '10px' }}>
+                              {msg.actionBtns.map((actionBtn, actionIdx) => (
+                                <button
+                                  key={actionIdx}
+                                  onClick={() => {
+                                    if (actionBtn.targetTab === 'simulation') setStudentTab('simulation');
+                                    if (actionBtn.targetTab === 'cv') setStudentTab('cv');
+                                    if (actionBtn.targetTab === 'interview') setStudentTab('interview');
+                                    if (actionBtn.targetTab === 'explore') setStudentTab('explore');
+                                  }}
+                                  style={{ padding: '8px 12px', borderRadius: '999px', backgroundColor: 'var(--primary-light)', color: 'var(--primary)', border: '1px solid var(--primary-border)', fontSize: '12px', fontWeight: 700 }}
+                                >
+                                  {actionBtn.label}
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       ))}
+                      {chatLoading && (
+                        <div style={{ alignSelf: 'flex-start', maxWidth: '80%' }}>
+                          <div style={{ padding: '12px 18px', borderRadius: '16px', backgroundColor: 'var(--primary-light)', color: 'var(--primary)', fontSize: '14px', lineHeight: 1.6, fontWeight: 700 }}>
+                            NAVIX AI đang suy nghĩ...
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <div style={{ padding: '16px', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '12px' }}>
                       <input type="text" value={chatInput} onChange={e => setChatInput(e.target.value)} placeholder="Nhập câu hỏi hoặc ngành nghề bạn muốn tối ưu lộ trình..." style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '14px' }} />
-                      <button onClick={handleSendChat} style={{ padding: '12px 24px', borderRadius: '8px', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 700 }}>Gửi</button>
+                      <button onClick={handleSendChat} disabled={chatLoading} style={{ padding: '12px 24px', borderRadius: '8px', backgroundColor: chatLoading ? '#9ca3af' : 'var(--primary)', color: '#fff', fontWeight: 700, cursor: chatLoading ? 'not-allowed' : 'pointer' }}>{chatLoading ? 'Đang gửi...' : 'Gửi'}</button>
                     </div>
                   </div>
                 </div>
@@ -2111,10 +2478,38 @@ Hãy trả về gợi ý trả lời ngắn theo phương pháp STAR, liệt kê
               {/* CHỨNG CHỈ TAB */}
               {studentTab === 'cert' && (
                 <div className="animate-fade-in">
-                  <h2 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '20px' }}>Chứng chỉ của tôi</h2>
-                  <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)' }}>
-                    <h3 style={{ fontSize: '18px', fontWeight: 700 }}>Career Exploration - NAVIX</h3>
-                    <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Cấp ngày: 20/05/2025</p>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'end', marginBottom: '20px', gap: '16px', flexWrap: 'wrap' }}>
+                    <div>
+                      <h2 style={{ fontSize: '28px', fontWeight: 900, marginBottom: '6px', color: 'var(--primary)' }}>Chứng chỉ của tôi</h2>
+                      <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>Thành quả được trình bày theo phong cách chứng nhận cao cấp, rõ hạng và rõ giá trị.</p>
+                    </div>
+                    <span style={{ padding: '6px 14px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--primary-light)', color: 'var(--primary)', fontWeight: 700, fontSize: '12px', border: '1px solid var(--primary-border)' }}>1 chứng chỉ đã hoàn thành</span>
+                  </div>
+
+                  <div style={{ position: 'relative', overflow: 'hidden', background: 'linear-gradient(135deg, #0f3d27 0%, #14532d 45%, #1f7a46 100%)', padding: '28px', borderRadius: '28px', boxShadow: '0 24px 48px rgba(15, 61, 39, 0.18)', color: '#fff', border: '1px solid rgba(255,255,255,0.12)' }}>
+                    <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at top right, rgba(255,255,255,0.2), transparent 35%)' }} />
+                    <div style={{ position: 'relative', display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '24px', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 12px', borderRadius: '999px', backgroundColor: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.16)', fontSize: '12px', fontWeight: 700, marginBottom: '18px' }}>
+                          <Award size={14} /> Verified by NAVIX AI
+                        </div>
+                        <div style={{ fontSize: '12px', letterSpacing: '1.8px', opacity: 0.85, marginBottom: '10px' }}>CERTIFICATE OF COMPLETION</div>
+                        <h3 style={{ fontSize: '32px', fontWeight: 900, lineHeight: 1.1, margin: '0 0 8px' }}>Career Exploration - NAVIX</h3>
+                        <p style={{ margin: '0 0 18px', fontSize: '15px', lineHeight: 1.7, maxWidth: '620px', color: 'rgba(255,255,255,0.88)' }}>Chứng nhận hoàn thành hành trình khám phá nghề nghiệp, phân tích RIASEC và xây dựng nền tảng hướng nghiệp cùng NAVIX AI.</p>
+                        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                          <span style={{ padding: '8px 12px', borderRadius: '999px', backgroundColor: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.14)', fontSize: '12px', fontWeight: 700 }}>Ngày cấp: 20/05/2025</span>
+                          <span style={{ padding: '8px 12px', borderRadius: '999px', backgroundColor: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.14)', fontSize: '12px', fontWeight: 700 }}>Điểm chứng nhận: 89/100</span>
+                          <span style={{ padding: '8px 12px', borderRadius: '999px', backgroundColor: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.14)', fontSize: '12px', fontWeight: 700 }}>Top 12% Learners</span>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'center' }}>
+                        <div style={{ width: '170px', height: '170px', borderRadius: '50%', background: 'radial-gradient(circle at 35% 35%, #fef3c7 0%, #fde68a 35%, #f59e0b 100%)', boxShadow: 'inset 0 0 0 10px rgba(255,255,255,0.26), 0 16px 30px rgba(0,0,0,0.18)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', color: '#0f3d27', border: '6px solid rgba(255,255,255,0.2)' }}>
+                          <Award size={34} />
+                          <div style={{ fontSize: '12px', fontWeight: 900, letterSpacing: '1px', marginTop: '8px' }}>NAVIX SEAL</div>
+                          <div style={{ fontSize: '11px', fontWeight: 700, opacity: 0.8 }}>Career Ready</div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
@@ -2956,7 +3351,7 @@ Hãy trả về gợi ý trả lời ngắn theo phương pháp STAR, liệt kê
       {activeSimModal && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 120, padding: '24px' }}>
           <div className="animate-fade-in" style={{ backgroundColor: '#fff', borderRadius: 'var(--radius-xl)', maxWidth: '780px', width: '100%', padding: '32px', position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}>
-            <button onClick={() => { setActiveSimModal(null); setSimEvaluationResult(null); setSimAnswerText(''); }} style={{ position: 'absolute', top: '16px', right: '16px', width: '32px', height: '32px', borderRadius: '50%', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={16} /></button>
+            <button onClick={() => { setActiveSimModal(null); setSimEvaluationResult(null); setSimAnswerText(''); setSimSubmitting(false); setSimSubmissionError(''); setSimLeaderboardExpanded(false); }} style={{ position: 'absolute', top: '16px', right: '16px', width: '32px', height: '32px', borderRadius: '50%', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={16} /></button>
 
             <div style={{ marginBottom: '20px' }}>
               <span style={{ fontSize: '11px', fontWeight: 700, padding: '3px 10px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--primary-light)', color: 'var(--primary)', marginBottom: '8px', display: 'inline-block' }}>{activeSimModal.status}</span>
@@ -2976,30 +3371,50 @@ Hãy trả về gợi ý trả lời ngắn theo phương pháp STAR, liệt kê
             {!simEvaluationResult ? (
               <div>
                 <h4 style={{ fontSize: '15px', fontWeight: 800, marginBottom: '10px', color: 'var(--text-main)' }}>✏️ Bài làm của bạn</h4>
+                {simSubmitting && (
+                  <div style={{ padding: '14px 16px', borderRadius: '10px', backgroundColor: 'var(--primary-light)', color: 'var(--primary)', fontSize: '13px', fontWeight: 700, marginBottom: '14px' }}>
+                    AI đang chấm bài, bạn kiên nhẫn chờ xíu nha
+                  </div>
+                )}
+                {simSubmissionError && (
+                  <div style={{ padding: '12px 14px', borderRadius: '10px', backgroundColor: '#fee2e2', color: '#b91c1c', fontSize: '13px', fontWeight: 600, marginBottom: '14px' }}>
+                    {simSubmissionError}
+                  </div>
+                )}
                 <textarea
                   value={simAnswerText}
                   onChange={e => setSimAnswerText(e.target.value)}
+                  disabled={simSubmitting}
                   placeholder={`Nhập bài làm của bạn cho đề mô phỏng "${activeSimModal.title}" tại đây...`}
                   rows={8}
-                  style={{ width: '100%', padding: '14px', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '14px', lineHeight: 1.7, resize: 'vertical', marginBottom: '16px' }}
+                  style={{ width: '100%', padding: '14px', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '14px', lineHeight: 1.7, resize: 'vertical', marginBottom: '16px', backgroundColor: simSubmitting ? 'var(--bg-main)' : '#fff', opacity: simSubmitting ? 0.8 : 1 }}
                 />
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-                  <button onClick={() => { setActiveSimModal(null); setSimAnswerText(''); }} style={{ padding: '10px 20px', borderRadius: 'var(--radius-full)', border: '1px solid var(--border-color)', fontWeight: 600 }}>Hủy</button>
+                  <button onClick={() => { setActiveSimModal(null); setSimAnswerText(''); setSimSubmitting(false); setSimSubmissionError(''); }} style={{ padding: '10px 20px', borderRadius: 'var(--radius-full)', border: '1px solid var(--border-color)', fontWeight: 600 }}>
+                    Hủy
+                  </button>
                   <button
-                    onClick={() => {
+                    disabled={simSubmitting}
+                    onClick={async () => {
                       if (!simAnswerText.trim()) { alert('Vui lòng nhập bài làm trước khi nộp.'); return; }
-                      setSimEvaluationResult({
-                        score: 8.6,
-                        criteria: [
-                          { name: 'Tư duy phân tích & logic', score: 9, feedback: 'Bài làm có cấu trúc rõ ràng, phân tích insight đúng hướng.' },
-                          { name: 'Tính sáng tạo & đột phá', score: 8, feedback: 'Ý tưởng tốt, có thể bổ sung thêm các kênh đa nền tảng (TikTok, YouTube).' },
-                          { name: 'Tính khả thi & thực tiễn', score: 9, feedback: 'Kế hoạch rõ ràng, có thể triển khai thực tế.' },
-                          { name: 'Kỹ năng trình bày & thuyết phục', score: 8, feedback: 'Trình bày mạch lạc, cần bổ sung dữ liệu cụ thể hơn.' }
-                        ],
-                        overall: 'Bài làm xuất sắc! Bạn thể hiện tốt tư duy Marketing chiến lược và khả năng triển khai thực tế. Nhà tuyển dụng NovaTech đánh giá cao khả năng phân tích Gen Z Insight của bạn.'
-                      });
+                      setSimSubmitting(true);
+                      setSimSubmissionError('');
+                      try {
+                        const evaluation = await evaluateSimulationSubmission(activeSimModal, simAnswerText);
+                        setSimEvaluationResult(evaluation);
+                        setSimBestScores(prev => {
+                          const key = activeSimModal.title;
+                          const best = prev[key] || 0;
+                          if (evaluation.score <= best) return prev;
+                          return { ...prev, [key]: evaluation.score };
+                        });
+                      } catch (error: any) {
+                        setSimSubmissionError(error?.message || 'Không thể chấm bài lúc này. Vui lòng thử lại.');
+                      } finally {
+                        setSimSubmitting(false);
+                      }
                     }}
-                    style={{ padding: '12px 28px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 700, fontSize: '15px', cursor: 'pointer' }}
+                    style={{ padding: '12px 28px', borderRadius: 'var(--radius-full)', backgroundColor: simSubmitting ? '#9ca3af' : 'var(--primary)', color: '#fff', fontWeight: 700, fontSize: '15px', cursor: simSubmitting ? 'not-allowed' : 'pointer' }}
                   >📤 Nộp bài & Chấm điểm AI</button>
                 </div>
               </div>
@@ -3011,23 +3426,38 @@ Hãy trả về gợi ý trả lời ngắn theo phương pháp STAR, liệt kê
                   </div>
                   <div>
                     <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--primary)' }}>Kết quả chấm điểm AI</div>
-                    <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>Điểm tổng: {simEvaluationResult.score}/10 — Xuất sắc</div>
+                    <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>Điểm tổng: {simEvaluationResult.score}/100 — {getSimulationScoreLabel(simEvaluationResult.score)}</div>
                   </div>
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
-                  {simEvaluationResult.criteria.map((c: any, i: number) => (
+                  {simEvaluationResult.criteria.map((c: SimulationCriterion, i: number) => (
                     <div key={i} style={{ padding: '14px 16px', backgroundColor: 'var(--bg-main)', borderRadius: '8px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
                         <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main)' }}>{c.name}</span>
-                        <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--primary)' }}>{c.score}/10</span>
+                        <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--primary)' }}>{c.score}/{c.maxScore}</span>
                       </div>
                       <div style={{ height: '4px', backgroundColor: '#e2e8f0', borderRadius: '2px', overflow: 'hidden', marginBottom: '6px' }}>
-                        <div style={{ width: `${c.score * 10}%`, height: '100%', backgroundColor: 'var(--primary)' }} />
+                        <div style={{ width: `${(c.score / c.maxScore) * 100}%`, height: '100%', backgroundColor: 'var(--primary)' }} />
                       </div>
                       <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0 }}>{c.feedback}</p>
                     </div>
                   ))}
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+                  <div style={{ padding: '16px 18px', backgroundColor: '#fff', border: '1px solid var(--border-color)', borderRadius: '10px' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--primary)', marginBottom: '8px' }}>💪 Điểm mạnh</div>
+                    <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '13px', color: 'var(--text-main)', lineHeight: 1.7 }}>
+                      {simEvaluationResult.strengths.map((item, index) => <li key={index}>{item}</li>)}
+                    </ul>
+                  </div>
+                  <div style={{ padding: '16px 18px', backgroundColor: '#fff', border: '1px solid var(--border-color)', borderRadius: '10px' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--primary)', marginBottom: '8px' }}>🌱 Cần cải thiện</div>
+                    <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '13px', color: 'var(--text-main)', lineHeight: 1.7 }}>
+                      {simEvaluationResult.improvements.map((item, index) => <li key={index}>{item}</li>)}
+                    </ul>
+                  </div>
                 </div>
 
                 <div style={{ padding: '16px 20px', backgroundColor: '#fff', border: '1px solid var(--primary-border)', borderRadius: '10px', marginBottom: '16px' }}>
@@ -3035,9 +3465,42 @@ Hãy trả về gợi ý trả lời ngắn theo phương pháp STAR, liệt kê
                   <p style={{ fontSize: '13px', color: 'var(--text-main)', lineHeight: 1.7, margin: 0 }}>{simEvaluationResult.overall}</p>
                 </div>
 
+                <div style={{ padding: '16px 20px', backgroundColor: 'var(--bg-main)', borderRadius: '10px', marginBottom: '16px', border: '1px solid var(--border-color)' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--primary)', marginBottom: '6px' }}>🧾 Đáp án / Phương án tham khảo</div>
+                  <pre style={{ whiteSpace: 'pre-wrap', fontSize: '13px', color: 'var(--text-main)', lineHeight: 1.7, margin: 0, fontFamily: 'inherit' }}>{simEvaluationResult.referenceAnswer}</pre>
+                </div>
+
+                {simLeaderboardExpanded && (
+                  <div style={{ padding: '18px 20px', backgroundColor: '#fff', borderRadius: '10px', border: '1px solid var(--border-color)', marginBottom: '16px' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--primary)', marginBottom: '12px' }}>🏆 Bảng xếp hạng</div>
+                    {(() => {
+                      const bestScore = simBestScores[activeSimModal.title] || simEvaluationResult.score;
+                      const leaderboard = buildSimulationLeaderboard(bestScore);
+                      const myRank = leaderboard.findIndex(entry => entry.name === 'Bạn') + 1;
+                      return (
+                        <>
+                          <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>Điểm cao nhất của bạn cho bài này: <strong>{bestScore}/100</strong> · Hạng hiện tại: <strong>#{myRank}</strong></div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            {leaderboard.map((entry, index) => (
+                              <div key={`${entry.name}-${index}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', borderRadius: '8px', backgroundColor: index === 0 ? 'var(--primary-light)' : 'var(--bg-main)' }}>
+                                <div>
+                                  <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)' }}>{index + 1}. {entry.name}</div>
+                                  {entry.badge && <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{entry.badge}</div>}
+                                </div>
+                                <div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--primary)' }}>{entry.score}/100</div>
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
+
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-                  <button onClick={() => { setSimEvaluationResult(null); setSimAnswerText(''); }} style={{ padding: '10px 20px', borderRadius: 'var(--radius-full)', border: '1px solid var(--border-color)', fontWeight: 600 }}>Làm lại</button>
-                  <button onClick={() => { setActiveSimModal(null); setSimEvaluationResult(null); setSimAnswerText(''); }} style={{ padding: '12px 24px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 700 }}>Hoàn thành ✓</button>
+                  <button onClick={() => { setSimEvaluationResult(null); setSimAnswerText(''); setSimSubmissionError(''); setSimLeaderboardExpanded(false); }} style={{ padding: '10px 20px', borderRadius: 'var(--radius-full)', border: '1px solid var(--border-color)', fontWeight: 600 }}>Làm lại bài</button>
+                  <button onClick={() => { setSimLeaderboardExpanded(prev => !prev); }} style={{ padding: '10px 20px', borderRadius: 'var(--radius-full)', border: '1px solid var(--border-color)', fontWeight: 700, color: 'var(--primary)' }}>Xem bảng xếp hạng</button>
+                  <button onClick={() => { setActiveSimModal(null); setSimEvaluationResult(null); setSimAnswerText(''); setSimSubmitting(false); setSimSubmissionError(''); setSimLeaderboardExpanded(false); }} style={{ padding: '12px 24px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 700 }}>Chọn nhiệm vụ khác</button>
                 </div>
               </div>
             )}
