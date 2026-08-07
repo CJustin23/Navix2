@@ -925,21 +925,11 @@ export default function App() {
             onClick={() => setCurrentPage(currentUser ? (currentUser.role === 'business' ? 'enterprise-dashboard' : 'student-dashboard') : 'home')}
             style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
           >
-            <div style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: '50%',
-              backgroundColor: 'var(--primary)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#fff',
-              fontWeight: 800,
-              fontSize: '18px'
-            }}>
-              N
-            </div>
-            <span style={{ fontWeight: 800, fontSize: '20px', color: 'var(--primary)', letterSpacing: '0.5px' }}>NAVIX</span>
+            <img
+              src="/logo.png"
+              alt="NAVIX"
+              style={{ width: '154px', height: '42px', objectFit: 'contain', display: 'block' }}
+            />
           </div>
 
           {isDashboard && (
