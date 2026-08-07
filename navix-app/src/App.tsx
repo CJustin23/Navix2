@@ -315,7 +315,6 @@ export default function App() {
   const [careerTestModalOpen, setCareerTestModalOpen] = useState<boolean>(false);
   const [careerStep, setCareerStep] = useState<'info' | 'form' | 'questions' | 'result' | 'map'>('info');
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState<number>(0);
-  const [selectedJobMap, setSelectedJobMap] = useState<string>('Brand Marketing');
   const [careerAnswers, setCareerAnswers] = useState<Record<number, number>>({});
 
   // AI Interview Practice Flow (Capture10 -> Capture15)
@@ -324,7 +323,7 @@ export default function App() {
   const [selectedPosition, setSelectedPosition] = useState<string>('HR Generalist');
   const [selectedEnterprise, setSelectedEnterprise] = useState<string>('Techcombank');
   const [answerMode, setAnswerMode] = useState<'text' | 'voice'>('text');
-  const [answerText, setAnswerText] = useState<string>('');
+  const [, setAnswerText] = useState<string>('');
   const [showQuestionHint, setShowQuestionHint] = useState<boolean>(false);
   const [currentInterviewQuestionIdx, setCurrentInterviewQuestionIdx] = useState<number>(0);
   const [interviewAnswersList, setInterviewAnswersList] = useState<Record<number, string>>({});
@@ -363,10 +362,10 @@ export default function App() {
   const [hintQuestionOverride, setHintQuestionOverride] = useState<string>('');
 
   // local heuristic generator for hints (no external API)
-  const localGenerateHint = (question: string, position: string, domain: string) => {
+  const localGenerateHint = () => {
     const star = `S: Mô tả bối cảnh ngắn gọn; T: Nhiệm vụ bạn đảm nhận; A: Hành động cụ thể bạn đã làm; R: Kết quả đo lường.`;
     const keyPoints = [`Nêu vai trò & đóng góp cá nhân`, `Đưa số liệu (nếu có)`, `Nêu thách thức & cách giải quyết`, `Kết quả cụ thể hoặc bài học`];
-    const sample = `Trong dự án X (S), tôi được giao nhiệm vụ ${position} (T). Tôi đã thực hiện bằng cách ... (A), kết quả là đạt được ... (R) — ví dụ: tăng 20% tương tác, hoàn thành trước kế hoạch 2 tuần.`;
+    const sample = `Trong dự án X (S), tôi được giao nhiệm vụ ${selectedPosition} (T). Tôi đã thực hiện bằng cách ... (A), kết quả là đạt được ... (R) — ví dụ: tăng 20% tương tác, hoàn thành trước kế hoạch 2 tuần.`;
     return { star, keyPoints, sample };
   };
 
@@ -395,7 +394,7 @@ Hãy trả về gợi ý trả lời ngắn theo phương pháp STAR, liệt kê
         const parts = content.split('\n\n');
         setSampleAnswer(parts[parts.length - 1] || '');
       } else {
-        const out = localGenerateHint(question, selectedPosition, selectedDomain);
+        const out = localGenerateHint();
         setHintText(`STAR: ${out.star}\n\nNhững điểm cần nêu:\n- ${out.keyPoints.join('\n- ')}`);
         setSampleAnswer(out.sample);
       }
@@ -1380,7 +1379,7 @@ Hãy trả về gợi ý trả lời ngắn theo phương pháp STAR, liệt kê
                       </div>
                     </div>
                                       {(() => {
-                      const currentJobData = jobMapsDetails[selectedJobMap] || jobMapsDetails['Brand Marketing'];
+                                      const currentJobData = jobMapsDetails['Brand Marketing'];
                       return (
                         <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>

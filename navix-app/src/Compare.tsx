@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 
 // Compare page: shows a list of sample images (expected to be copied into /public/screenshots/)
 // and an iframe to load the app at a specific section. The sample image is overlaid on the

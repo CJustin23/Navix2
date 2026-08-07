@@ -1,0 +1,13 @@
+{
+  "name": "navix2",
+  "private": true,
+  "workspaces": [
+    "navix-app"
+  ],
+  "scripts": {
+    "build": "npm --workspace navix-app run build",
+    "dev": "npm --workspace navix-app run dev",
+    "preview": "npm --workspace navix-app run preview",
+    "lint": "npm --workspace navix-app run lint"
+  }
+}
