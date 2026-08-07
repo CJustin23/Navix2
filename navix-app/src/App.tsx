@@ -46,6 +46,181 @@ interface User {
   industry?: string;
 }
 
+// 7 Distinct Job Maps Data
+const jobMapsDetails: Record<string, {
+  title: string;
+  categoryTag: string;
+  duties: string[];
+  tools: string[];
+  skills: string[];
+  companies: string;
+  salary: string;
+  careerPath: string;
+}> = {
+  'Brand Marketing': {
+    title: 'Brand Marketing',
+    categoryTag: 'Nhánh Thương hiệu',
+    duties: [
+      'Xây dựng định vị, tầm nhìn và câu chuyện thương hiệu (Brand Story)',
+      'Lên kế hoạch chiến dịch truyền thông tích hợp (IMC Campaign)',
+      'Quản lý thương hiệu và hợp tác với Creative Agencies & KOLs'
+    ],
+    tools: ['Canva', 'Figma', 'Meta Business Suite', 'Brandwatch', 'PowerPoint'],
+    skills: ['Tư duy chiến lược', 'Sáng tạo nội dung', 'Nghiên cứu hành vi người dùng (Insight)'],
+    companies: 'Unilever, P&G, Vinamilk, Masan Group, Suntory PepsiCo',
+    salary: '12 - 25 triệu VNĐ/tháng',
+    careerPath: 'Brand Executive → Brand Manager → Marketing Director'
+  },
+  'Digital Marketing': {
+    title: 'Digital Marketing',
+    categoryTag: 'Nhánh Tiếp thị Kỹ thuật số',
+    duties: [
+      'Tối ưu các kênh digital (SEO, SEM, Social Media, Email Marketing)',
+      'Quản lý ngân sách chạy quảng cáo và theo dõi chỉ số ROI/ROAS',
+      'Xây dựng kênh tăng trưởng lượng truy cập & tỉ lệ chuyển đổi web/app'
+    ],
+    tools: ['Google Analytics 4', 'Google Ads', 'Facebook Ads Manager', 'Ahrefs', 'Semrush'],
+    skills: ['Phân tích số liệu Digital', 'Chạy quảng cáo Đa kênh', 'Tối ưu Conversion Rate'],
+    companies: 'Shopee, Grab, Tiki, VNG Corporation, Momo',
+    salary: '10 - 22 triệu VNĐ/tháng',
+    careerPath: 'Digital Specialist → Digital Lead → Head of Digital Marketing'
+  },
+  'Content Marketing': {
+    title: 'Content Marketing',
+    categoryTag: 'Nhánh Sáng tạo Nội dung',
+    duties: [
+      'Lập chiến lược nội dung đa nền tảng (Blog, Social, Video Tiktok, Youtube)',
+      'Viết kịch bản video, bài PR, Email Marketing và Copywriting sản phẩm',
+      'Đo lường độ tương tác (Engagement) và mức độ viral của chiến dịch'
+    ],
+    tools: ['CapCut', 'Notion', 'ChatGPT / AI Tools', 'WordPress', 'Photoshop'],
+    skills: ['Kỹ năng Viết & Copywriting', 'Tư duy Thẩm mỹ & Video Short-form', 'Storytelling'],
+    companies: 'Admicro, Dentsu, Chotot, Coolmate, Sunhouse',
+    salary: '9 - 18 triệu VNĐ/tháng',
+    careerPath: 'Content Executive → Content Lead → Chief Content Officer'
+  },
+  'Trade Marketing': {
+    title: 'Trade Marketing',
+    categoryTag: 'Nhánh Tiếp thị Điểm bán',
+    duties: [
+      'Tối ưu hóa hình ảnh thương hiệu và vật phẩm trưng bày tại điểm bán (POSM)',
+      'Triển khai chương trình khuyến mãi cho kênh GT (Truyền thống) và MT (Hiện đại)',
+      'Nghiên cứu đối thủ tại kênh bán lẻ và quản lý ngân sách trưng bày'
+    ],
+    tools: ['Excel Advanced', 'Power BI', 'Salesforce', 'Trade Audit Apps'],
+    skills: ['Phân tích Kênh Phân phối', 'Thương lượng với Siêu thị/Đại lý', 'Nghiên cứu Shopper'],
+    companies: 'Nestlé, Coca-Cola, FrieslandCampina, CP Vietnam',
+    salary: '11 - 24 triệu VNĐ/tháng',
+    careerPath: 'Trade Executive → Trade Marketing Manager → Commercial Director'
+  },
+  'Performance Marketing': {
+    title: 'Performance Marketing',
+    categoryTag: 'Nhánh Tối ưu Tăng trưởng',
+    duties: [
+      'Thiết lập, thử nghiệm A/B và tối ưu chiến dịch chạy Ads quy mô lớn',
+      'Theo dõi sát các chỉ số CAC, LTV, CPA, CTR, CVR hàng ngày',
+      'Phối hợp với Media team để liên tục đổi mới kho nội dung quảng cáo'
+    ],
+    tools: ['Tiktok Ads Manager', 'Meta Ads', 'Google Tag Manager', 'Mixpanel', 'Looker Studio'],
+    skills: ['Tư duy Số liệu sắc bén', 'Quản lý Ngân sách lớn', 'A/B Testing & Attribution'],
+    companies: 'Tiki, Shopee, Lazada, Be Group, VPBank',
+    salary: '14 - 30 triệu VNĐ/tháng',
+    careerPath: 'Performance Media Specialist → Performance Manager → Growth Director'
+  },
+  'Research Marketing': {
+    title: 'Research Marketing (Market Research)',
+    categoryTag: 'Nhánh Nghiên cứu Thị trường',
+    duties: [
+      'Thiết kế bảng khảo sát định lượng và phỏng vấn định tính với khách hàng',
+      'Phân tích quy mô thị trường, xu hướng tiêu dùng và rào cản hành vi',
+      'Cung cấp báo cáo thị trường giúp Ban Giám Đốc ra quyết định sản phẩm mới'
+    ],
+    tools: ['SPSS', 'Qualtrics', 'Google Forms / SurveyMonkey', 'Tableau', 'R/Python'],
+    skills: ['Thống kê & Phân tích Dữ liệu', 'Kỹ năng Phỏng vấn Chuyên sâu', 'Tư duy Khách quan'],
+    companies: 'NielsenIQ, Kantar Vietnam, Intage, Cimigo, Ipsos',
+    salary: '12 - 25 triệu VNĐ/tháng',
+    careerPath: 'Market Research Executive → Consumer Insight Manager → Head of Insights'
+  },
+  'CRM': {
+    title: 'CRM & Customer Loyalty',
+    categoryTag: 'Nhánh Quản trị Quan hệ Khách hàng',
+    duties: [
+      'Xây dựng chiến lược giữ chân khách hàng (Retention Strategy) & chương trình Loyalty',
+      'Phân nhóm khách hàng (RFM Segmentation) để gửi thông điệp cá nhân hóa',
+      'Tối ưu hóa vòng đời khách hàng (Customer Lifetime Value)'
+    ],
+    tools: ['HubSpot CRM', 'Salesforce Marketing Cloud', 'Braze', 'Klaviyo', 'Zalo ZNS'],
+    skills: ['Phân tích Hành vi Khách hàng', 'Automation Marketing', 'Tư duy Chăm sóc Khách hàng'],
+    companies: 'Garena, Highlands Coffee, Grab, ShopeeFood, VinID',
+    salary: '11 - 22 triệu VNĐ/tháng',
+    careerPath: 'CRM Specialist → CRM Manager → Head of CRM & Customer Experience'
+  }
+};
+
+// 10 Distinct Interview Questions Per Domain
+const interviewQuestionsMap: Record<string, string[]> = {
+  'Nhân sự': [
+    '1. Bạn hãy giới thiệu bản thân và lý do bạn muốn phát triển sự nghiệp trong ngành Nhân sự (HR)?',
+    '2. Theo bạn, vai trò quan trọng nhất của HR trong một doanh nghiệp hiện đại là gì?',
+    '3. Quy trình tuyển dụng một vị trí từ lúc phát sinh nhu cầu đến khi ứng viên onboard gồm những bước nào?',
+    '4. Hãy kể lại một trường hợp ứng viên từ chối Offer và cách bạn xử lý tình huống đó?',
+    '5. Bạn sử dụng những công cụ hoặc kênh tuyển dụng nào để tìm kiếm ứng viên tiềm năng?',
+    '6. Làm thế nào để đánh giá một ứng viên có phù hợp với Văn hóa doanh nghiệp (Culture Fit) hay không?',
+    '7. Khi có xung đột nội bộ giữa người lao động và quản lý, bạn sẽ đóng vai trò hòa giải như thế nào?',
+    '8. Bạn làm thế nào để xây dựng chính sách Lương thưởng & Phúc lợi (C&B) cạnh tranh trên thị trường?',
+    '9. Hãy kể về một dự án hoặc cải tiến nhân sự mà bạn tự hào nhất?',
+    '10. Định hướng phát triển sự nghiệp trong ngành HR của bạn trong 3 năm tới là gì?'
+  ],
+  'Marketing': [
+    '1. Hãy giới thiệu bản thân và phong cách làm việc/sáng tạo của bạn trong ngành Marketing?',
+    '2. Khi bắt đầu xây dựng kế hoạch Marketing cho một sản phẩm mới, bạn xuất phát từ đâu?',
+    '3. Hãy phân biệt sự khác nhau giữa Brand Marketing, Digital Marketing và Performance Marketing?',
+    '4. Kể lại một chiến dịch Marketing bạn từng ấn tượng hoặc trực tiếp tham gia? Kết quả đạt được là gì?',
+    '5. Bạn xử lý thế nào khi một chiến dịch truyền thông gặp khủng hoảng (PR Crisis) trên Social Media?',
+    '6. Làm thế nào để xác định và nghiên cứu chân dung khách hàng mục tiêu (Target Persona) hiệu quả?',
+    '7. Bạn sử dụng những chỉ số (KPIs/Metrics) nào để đo lường thành công của một chiến dịch Content?',
+    '8. Ngân sách bị cắt giảm 30%, bạn sẽ tối ưu hóa các kênh Marketing như thế nào mà vẫn đạt mục tiêu?',
+    '9. Theo bạn, xu hướng Marketing nào (ví dụ: AI, Short-form video) sẽ bùng nổ nhất trong 2 năm tới?',
+    '10. Mục tiêu nghề nghiệp ngắn hạn và dài hạn của bạn trong ngành Marketing là gì?'
+  ],
+  'CNTT': [
+    '1. Bạn hãy giới thiệu bản thân, các ngôn ngữ lập trình và công nghệ bạn thành thạo nhất?',
+    '2. Hãy giải thích kiến trúc phần mềm mà bạn ưa thích (VD: Microservices vs Monolith) và lý do lựa chọn?',
+    '3. Bạn xử lý và truy vết (debug) như thế nào khi phát hiện một lỗi nghiêm trọng (Critical Bug) trên Production?',
+    '4. Kể lại một dự án kỹ thuật phức tạp nhất bạn từng tham gia và vai trò của bạn trong đó?',
+    '5. Làm thế nào để bạn đảm bảo chất lượng mã nguồn (Clean Code, Unit Test, Code Review) trong team?',
+    '6. Bạn tối ưu hiệu năng (Performance Optimization) của ứng dụng / truy vấn cơ sở dữ liệu như thế nào?',
+    '7. Khi có sự bất đồng ý kiến về giải pháp kỹ thuật với Team Lead/Senior, bạn tranh luận thế nào?',
+    '8. Bạn cập nhật các công nghệ mới và học hỏi kiến thức chuyên môn hàng ngày bằng cách nào?',
+    '9. Bạn hiểu thế nào về quy trình Agile/Scrum và cách bạn phối hợp trong các buổi Sprint?',
+    '10. Định hướng phát triển của bạn là trở thành Tech Lead, Solution Architect hay Senior Specialist?'
+  ],
+  'Tài chính - Ngân hàng': [
+    '1. Bạn hãy giới thiệu bản thân và lý do bạn lựa chọn lĩnh vực Tài chính - Ngân hàng?',
+    '2. Hãy trình bày các chỉ số tài chính quan trọng nhất khi phân tích sức khỏe một doanh nghiệp?',
+    '3. Quy trình thẩm định tín dụng hoặc phân tích rủi ro đầu tư gồm những bước cơ bản nào?',
+    '4. Khi bảng cân đối kế toán không cân hoặc có sai sót số liệu, bạn kiểm tra từ đâu?',
+    '5. Bạn cập nhật và phân tích tác động của sự biến động lãi suất/tỷ giá đến doanh nghiệp như thế nào?',
+    '6. Kể lại một bài toán phân tích tài chính/mô hình dự báo khó khăn nhất bạn từng thực hiện?',
+    '7. Bạn làm thế nào để đảm bảo tính tuân thủ pháp lý và tính chính xác tuyệt đối trong báo cáo?',
+    '8. Theo bạn, những kỹ năng mềm nào là quan trọng nhất đối với một chuyên viên Tài chính?',
+    '9. Ứng dụng của Công nghệ tài chính (Fintech) và AI đang thay đổi ngành Ngân hàng ra sao?',
+    '10. Mục tiêu vị trí và cấp bậc bạn hướng tới trong 3 năm tới tại ngân hàng/công ty là gì?'
+  ],
+  'Kế toán - Kiểm toán': [
+    '1. Giới thiệu bản thân và kinh nghiệm thực hành với các chuẩn mực Kế toán (VAS/IFRS)?',
+    '2. Quy trình khóa sổ kế toán cuối tháng/cuối năm gồm những kiểm tra quan trọng nào?',
+    '3. Bạn xử lý và hạch toán như thế nào khi phát hiện chứng từ hóa đơn không hợp lệ?',
+    '4. Phân biệt sự khác nhau giữa Kiểm toán Nội bộ (Internal Audit) và Kiểm toán Độc lập?',
+    '5. Bạn sử dụng những công cụ/phần mềm kế toán nào (MISA, SAP, Fast, Excel)?',
+    '6. Làm thế nào để đảm bảo việc lập tờ khai Thuế GTGT, TNDN, TNCN đúng hạn và chính xác?',
+    '7. Hãy kể lại một lần bạn tham gia giải trình số liệu với Cơ quan Thuế hoặc Đoàn Kiểm toán?',
+    '8. Cách bạn lưu trữ và quản lý hệ thống chứng từ kế toán khoa học, bảo mật?',
+    '9. Theo bạn, phẩm chất quan trọng nhất của một người làm Kế toán - Kiểm toán là gì?',
+    '10. Định hướng sự nghiệp của bạn (Kế toán trưởng, Giám đốc tài chính CFO, ACCA/CPA)?'
+  ]
+};
+
 export default function App() {
   // Navigation & Page State
   const [currentPage, setCurrentPage] = useState<string>('home'); // home, register, login, student-dashboard, enterprise-dashboard
@@ -133,11 +308,15 @@ export default function App() {
   const [enterpriseTab, setEnterpriseTab] = useState<string>('overview');
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
 
+  // Activities modal state
+  const [showActivitiesModal, setShowActivitiesModal] = useState<boolean>(false);
+
   // Student Exploration RIASEC (Capture5 -> Capture8)
   const [careerTestModalOpen, setCareerTestModalOpen] = useState<boolean>(false);
   const [careerStep, setCareerStep] = useState<'info' | 'form' | 'questions' | 'result' | 'map'>('info');
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState<number>(0);
   const [selectedJobMap, setSelectedJobMap] = useState<string>('Brand Marketing');
+  const [careerAnswers, setCareerAnswers] = useState<Record<number, number>>({});
 
   // AI Interview Practice Flow (Capture10 -> Capture15)
   const [interviewStep, setInterviewStep] = useState<'landing' | 'select' | 'mode' | 'question' | 'feedback' | 'summary'>('landing');
@@ -147,6 +326,32 @@ export default function App() {
   const [answerMode, setAnswerMode] = useState<'text' | 'voice'>('text');
   const [answerText, setAnswerText] = useState<string>('');
   const [showQuestionHint, setShowQuestionHint] = useState<boolean>(false);
+  const [currentInterviewQuestionIdx, setCurrentInterviewQuestionIdx] = useState<number>(0);
+  const [interviewAnswersList, setInterviewAnswersList] = useState<Record<number, string>>({});
+
+  // Job Simulation Workspace state
+  const [activeSimModal, setActiveSimModal] = useState<any | null>(null);
+  const [simAnswerText, setSimAnswerText] = useState<string>('');
+  const [simEvaluationResult, setSimEvaluationResult] = useState<any | null>(null);
+
+  // CV Builder & ATS state
+  const [cvTab, setCvTab] = useState<'builder' | 'ats'>('builder');
+  const [cvData, setCvData] = useState({
+    fullName: 'Nguyễn Văn Enzy',
+    title: 'Front-end Developer Intern / Marketing Specialist',
+    email: 'enzy.student@navix.vn',
+    phone: '0987654321',
+    university: 'Đại học Kinh tế Quốc dân',
+    major: 'Công nghệ thông tin / Marketing',
+    gpa: '3.6/4.0',
+    summary: 'Sinh viên năm 3 năng động với tư duy logic tốt, đam mê phát triển sản phẩm và ứng dụng AI vào tối ưu hóa công việc.',
+    skills: ['React', 'TypeScript', 'Tailwind CSS', 'Social Media', 'Content Creation', 'Data Analysis'],
+    experience: 'Thực tập sinh Marketing tại NovaTech (03/2026 - 06/2026): Hỗ trợ lập kế hoạch nội dung và chạy quảng cáo.',
+    projects: 'Xây dựng Web App NAVIX: Ứng dụng AI định hướng nghề nghiệp và mô phỏng tuyển dụng cho sinh viên.'
+  });
+  const [atsJdInput, setAtsJdInput] = useState<string>('Yêu cầu vị trí: Có khả năng lập trình React / Web Frontend, sử dụng tốt TypeScript, hiểu biết về UX/UI và có tư duy giải quyết vấn đề tốt. Ưu tiên có sản phẩm demo.');
+  const [atsCvInput, setAtsCvInput] = useState<string>('Hồ sơ ứng viên: Thành thạo ReactJS, HTML/CSS, JavaScript, TypeScript, đã thực hiện dự án Web App fullstack và có sản phẩm mô phỏng việc làm.');
+  const [atsResult, setAtsResult] = useState<any | null>(null);
 
   // Hint generation states (AI key optional). If user provides an OpenAI key in the modal,
   // the app will try to call OpenAI from the browser (CORS permitting). Otherwise it falls
@@ -356,7 +561,7 @@ Hãy trả về gợi ý trả lời ngắn theo phương pháp STAR, liệt kê
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
           <div
-            onClick={() => setCurrentPage(isDashboard ? (currentUser?.role === 'business' ? 'enterprise-dashboard' : 'student-dashboard') : 'home')}
+            onClick={() => setCurrentPage(currentUser ? (currentUser.role === 'business' ? 'enterprise-dashboard' : 'student-dashboard') : 'home')}
             style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
           >
             <div style={{
@@ -393,7 +598,10 @@ Hãy trả về gợi ý trả lời ngắn theo phương pháp STAR, liệt kê
                 <Bell size={20} />
                 <span style={{ position: 'absolute', top: '6px', right: '6px', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ef4444', border: '2px solid #fff' }} />
               </button>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 12px 4px 4px', borderRadius: 'var(--radius-full)', border: '1px solid var(--border-color)', cursor: 'pointer' }}>
+              <div 
+                onClick={() => setCurrentPage(currentUser.role === 'business' ? 'enterprise-dashboard' : 'student-dashboard')}
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 12px 4px 4px', borderRadius: 'var(--radius-full)', border: '1px solid var(--border-color)', cursor: 'pointer' }}
+              >
                 <div style={{
                   width: '32px',
                   height: '32px',
@@ -416,15 +624,37 @@ Hãy trả về gợi ý trả lời ngắn theo phương pháp STAR, liệt kê
             </>
           ) : currentUser ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '6px 12px',
-                borderRadius: 'var(--radius-full)',
-                backgroundColor: 'var(--primary-light)',
-                border: '1px solid var(--primary-border)'
-              }}>
+              <button
+                onClick={() => setCurrentPage(currentUser.role === 'business' ? 'enterprise-dashboard' : 'student-dashboard')}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: 'var(--radius-full)',
+                  backgroundColor: 'var(--primary)',
+                  color: '#fff',
+                  fontWeight: 700,
+                  fontSize: '14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 8px rgba(20,83,45,0.2)'
+                }}
+              >
+                <LayoutDashboard size={16} /> Trang cá nhân
+              </button>
+              <div 
+                onClick={() => setCurrentPage(currentUser.role === 'business' ? 'enterprise-dashboard' : 'student-dashboard')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '6px 12px',
+                  borderRadius: 'var(--radius-full)',
+                  backgroundColor: 'var(--primary-light)',
+                  border: '1px solid var(--primary-border)',
+                  cursor: 'pointer'
+                }}
+              >
                 <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: 'var(--primary)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 700 }}>
                   {currentUser.name.charAt(0)}
                 </div>
@@ -439,22 +669,6 @@ Hãy trả về gợi ý trả lời ngắn theo phương pháp STAR, liệt kê
             </div>
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <button
-                onClick={() => setCurrentPage('compare')}
-                title="So sánh với ảnh mẫu"
-                style={{
-                  padding: '8px 14px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-color)',
-                  backgroundColor: '#fff',
-                  color: 'var(--text-main)',
-                  fontWeight: 700,
-                  fontSize: '13px'
-                }}
-              >
-                So sánh
-              </button>
-
               <button
                 onClick={() => { setLoginRole('student'); setCurrentPage('login'); }}
                 style={{
@@ -1091,7 +1305,7 @@ Hãy trả về gợi ý trả lời ngắn theo phương pháp STAR, liệt kê
                         </div>
                       </div>
 
-                      <button style={{ marginTop: '16px', fontSize: '13px', fontWeight: 700, color: 'var(--primary)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      <button onClick={() => setShowActivitiesModal(true)} style={{ marginTop: '16px', fontSize: '13px', fontWeight: 700, color: 'var(--primary)', display: 'inline-flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
                         Xem tất cả hoạt động <ChevronRight size={16} />
                       </button>
                     </div>
@@ -1165,102 +1379,56 @@ Hãy trả về gợi ý trả lời ngắn theo phương pháp STAR, liệt kê
                         </button>
                       </div>
                     </div>
-                  </div>
-
-                  {/* BẢN ĐỒ NGHỀ NGHIỆP MARKETING (Capture9.PNG) */}
-                  <h3 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '8px' }}>Bản đồ nghề nghiệp: Marketing</h3>
-                  <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '20px' }}>
-                    Chọn một nhánh nghề để xem chi tiết công việc, kỹ năng, công cụ và mức lương tham khảo.
-                  </p>
-                  <div style={{ backgroundColor: 'var(--primary-light)', padding: '24px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--primary-border)', marginBottom: '24px' }}>
-                    <div style={{ backgroundColor: '#fff', padding: '32px 24px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)', marginBottom: '20px', boxShadow: 'var(--shadow-sm)' }}>
-                      <svg viewBox="0 0 500 220" style={{ width: '100%', maxWidth: '500px', margin: '0 auto', display: 'block' }}>
-                        <circle cx="250" cy="40" r="32" fill="var(--primary)" />
-                        <text x="250" y="45" textAnchor="middle" fill="#fff" fontSize="11" fontWeight="700">MARKETING</text>
-                        {[
-                          { x: 70, label: 'Brand Marketing' },
-                          { x: 150, label: 'Digital Marketing' },
-                          { x: 250, label: 'Content Marketing' },
-                          { x: 350, label: 'Trade Marketing' },
-                          { x: 430, label: 'Performance' }
-                        ].map((node, i) => (
-                          <g key={i}>
-                            <line x1="250" y1="72" x2={node.x} y2="130" stroke="#cbd5e1" strokeWidth="1.5" />
-                            <circle
-                              cx={node.x} cy="150" r="22"
-                              fill={selectedJobMap === node.label ? 'var(--primary-light)' : '#f0fdf4'}
-                              stroke={selectedJobMap === node.label ? 'var(--primary)' : '#86efac'}
-                              strokeWidth={selectedJobMap === node.label ? 3 : 1.5}
-                              style={{ cursor: 'pointer' }}
-                              onClick={() => setSelectedJobMap(node.label)}
-                            />
-                            <text x={node.x} y={185} textAnchor="middle" fill="var(--text-main)" fontSize="10" fontWeight="600">{node.label.split(' ')[0]}</text>
-                          </g>
-                        ))}
-                      </svg>
-                      <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '8px' }}>
-                        {['Brand Marketing', 'Digital Marketing', 'Content Marketing', 'Trade Marketing', 'Performance Marketing', 'Research Marketing', 'CRM'].map((job) => (
-                          <button
-                            key={job}
-                            onClick={() => setSelectedJobMap(job)}
-                            style={{
-                              padding: '6px 14px',
-                              borderRadius: 'var(--radius-full)',
-                              border: selectedJobMap === job ? '2px solid var(--primary)' : '1px solid var(--border-color)',
-                              backgroundColor: selectedJobMap === job ? 'var(--primary-light)' : '#fff',
-                              color: selectedJobMap === job ? 'var(--primary)' : 'var(--text-muted)',
-                              fontWeight: 600,
-                              fontSize: '12px'
-                            }}
-                          >
-                            {job}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-                        <h4 style={{ fontSize: '22px', fontWeight: 800, color: 'var(--primary)' }}>{selectedJobMap}</h4>
-                        <span style={{ fontSize: '12px', padding: '4px 12px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--primary-light)', color: 'var(--primary)', fontWeight: 700 }}>Nhánh trong Marketing</span>
-                      </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '16px' }}>
-                        <div>
-                          <div style={{ fontWeight: 700, fontSize: '13px', marginBottom: '8px', color: 'var(--text-muted)' }}>CÔNG VIỆC CHÍNH</div>
-                          <ul style={{ fontSize: '13px', color: 'var(--text-main)', paddingLeft: '16px', lineHeight: 1.8 }}>
-                            <li>Xây dựng định vị và câu chuyện thương hiệu</li>
-                            <li>Lên kế hoạch chiến dịch truyền thông (IMC)</li>
-                            <li>Làm việc với agency và đối tác sáng tạo</li>
-                          </ul>
-                          <div style={{ fontWeight: 700, fontSize: '13px', margin: '16px 0 8px', color: 'var(--text-muted)' }}>CÔNG CỤ THƯỜNG DÙNG</div>
-                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                            {['Canva', 'Figma', 'Meta Business Suite', 'PowerPoint'].map(t => (
-                              <span key={t} style={{ fontSize: '12px', padding: '4px 12px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--primary-light)', color: 'var(--primary)', fontWeight: 600 }}>{t}</span>
-                            ))}
+                                      {(() => {
+                      const currentJobData = jobMapsDetails[selectedJobMap] || jobMapsDetails['Brand Marketing'];
+                      return (
+                        <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                            <div>
+                              <h4 style={{ fontSize: '22px', fontWeight: 800, color: 'var(--primary)', marginBottom: '4px' }}>{currentJobData.title}</h4>
+                              <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{currentJobData.categoryTag}</div>
+                            </div>
+                            <span style={{ fontSize: '12px', padding: '4px 12px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--primary-light)', color: 'var(--primary)', fontWeight: 700 }}>Nhánh trong Marketing</span>
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '16px' }}>
+                            <div>
+                              <div style={{ fontWeight: 700, fontSize: '13px', marginBottom: '8px', color: 'var(--text-muted)' }}>CÔNG VIỆC CHÍNH</div>
+                              <ul style={{ fontSize: '13px', color: 'var(--text-main)', paddingLeft: '16px', lineHeight: 1.8 }}>
+                                {currentJobData.duties.map((duty, idx) => (
+                                  <li key={idx}>{duty}</li>
+                                ))}
+                              </ul>
+                              <div style={{ fontWeight: 700, fontSize: '13px', margin: '16px 0 8px', color: 'var(--text-muted)' }}>CÔNG CỤ THƯỜNG DÙNG</div>
+                              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                {currentJobData.tools.map(t => (
+                                  <span key={t} style={{ fontSize: '12px', padding: '4px 12px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--primary-light)', color: 'var(--primary)', fontWeight: 600 }}>{t}</span>
+                                ))}
+                              </div>
+                            </div>
+                            <div>
+                              <div style={{ fontWeight: 700, fontSize: '13px', marginBottom: '8px', color: 'var(--text-muted)' }}>KỸ NĂNG CẦN</div>
+                              <ul style={{ fontSize: '13px', color: 'var(--text-main)', paddingLeft: '16px', lineHeight: 1.8 }}>
+                                {currentJobData.skills.map((skill, idx) => (
+                                  <li key={idx}>{skill}</li>
+                                ))}
+                              </ul>
+                              <div style={{ fontWeight: 700, fontSize: '13px', margin: '16px 0 8px', color: 'var(--text-muted)' }}>DOANH NGHIỆP TUYỂN DỤNG PHỔ BIẾN</div>
+                              <p style={{ fontSize: '13px', color: 'var(--text-main)' }}>{currentJobData.companies}</p>
+                            </div>
+                          </div>
+                          <div style={{ backgroundColor: 'var(--primary-light)', padding: '16px 24px', borderRadius: 'var(--radius-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                            <div>
+                              <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--primary)' }}>{currentJobData.salary}</div>
+                              <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Mức lương tham khảo</div>
+                            </div>
+                            <div style={{ textAlign: 'right' }}>
+                              <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main)' }}>{currentJobData.careerPath}</div>
+                              <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Lộ trình phát triển</div>
+                            </div>
                           </div>
                         </div>
-                        <div>
-                          <div style={{ fontWeight: 700, fontSize: '13px', marginBottom: '8px', color: 'var(--text-muted)' }}>KỸ NĂNG CẦN</div>
-                          <ul style={{ fontSize: '13px', color: 'var(--text-main)', paddingLeft: '16px', lineHeight: 1.8 }}>
-                            <li>Tư duy chiến lược</li>
-                            <li>Sáng tạo nội dung</li>
-                            <li>Nghiên cứu hành vi người dùng (Insight)</li>
-                          </ul>
-                          <div style={{ fontWeight: 700, fontSize: '13px', margin: '16px 0 8px', color: 'var(--text-muted)' }}>DOANH NGHIỆP TUYỂN DỤNG PHỔ BIẾN</div>
-                          <p style={{ fontSize: '13px', color: 'var(--text-main)' }}>Unilever, P&G, Vinamilk, Masan</p>
-                        </div>
-                      </div>
-                      <div style={{ backgroundColor: 'var(--primary-light)', padding: '16px 24px', borderRadius: 'var(--radius-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-                        <div>
-                          <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--primary)' }}>10 - 18 triệu</div>
-                          <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Mức lương tham khảo</div>
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main)' }}>Brand Executive → Brand Manager → Marketing Director</div>
-                          <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Lộ trình phát triển</div>
-                        </div>
-                      </div>
-                    </div>
+                      );
+                    })()}
                   </div>
                 </div>
               )}
@@ -1404,79 +1572,115 @@ Hãy trả về gợi ý trả lời ngắn theo phương pháp STAR, liệt kê
                     </div>
                   )}
 
-                  {/* Step 4: Answer Question (Capture13.PNG) */}
-                  {interviewStep === 'question' && (
-                    <div style={{ backgroundColor: 'var(--cream)', padding: '40px', borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-sm)' }}>
-                      <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--primary-accent)', marginBottom: '8px', letterSpacing: '0.5px' }}>CÂU HỎI 1</div>
-                      <h3 style={{ fontSize: '24px', fontWeight: 800, marginBottom: '24px', color: 'var(--primary)' }}>Quy trình tính lương hàng tháng của bạn gồm những bước nào?</h3>
-
-                      <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
-                        <button onClick={() => setAnswerMode('text')} style={{ padding: '10px 20px', borderRadius: 'var(--radius-full)', backgroundColor: answerMode === 'text' ? 'var(--primary)' : '#fff', color: answerMode === 'text' ? '#fff' : 'var(--text-main)', fontWeight: 700, border: answerMode === 'text' ? 'none' : '1px solid var(--border-color)' }}>
-                          ✍️ Trả lời văn bản
-                        </button>
-                        <button onClick={() => setAnswerMode('voice')} style={{ padding: '10px 20px', borderRadius: 'var(--radius-full)', backgroundColor: answerMode === 'voice' ? 'var(--primary)' : '#fff', color: answerMode === 'voice' ? '#fff' : 'var(--text-main)', fontWeight: 700, border: answerMode === 'voice' ? 'none' : '1px solid var(--border-color)' }}>
-                          🎙️ Trả lời giọng nói
-                        </button>
-                        <button onClick={() => setShowQuestionHint(true)} style={{ marginLeft: 'auto', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: '#fff', fontWeight: 700 }}>Gợi ý</button>
-                      </div>
-
-                      <textarea
-                        rows={6}
-                        value={answerText}
-                        onChange={e => setAnswerText(e.target.value)}
-                        placeholder="Nhập câu trả lời của bạn..."
-                        style={{ width: '100%', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', marginBottom: '24px', backgroundColor: '#fff', fontSize: '14px', resize: 'vertical' }}
-                      />
-
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <button onClick={() => setInterviewStep('mode')} style={{ padding: '10px 20px', borderRadius: 'var(--radius-full)', border: '1px solid var(--border-color)', backgroundColor: '#fff', fontWeight: 600, color: 'var(--primary)' }}>← Câu trước</button>
-                        <button onClick={() => setInterviewStep('feedback')} style={{ padding: '12px 28px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 700, boxShadow: '0 4px 12px rgba(20,83,45,0.2)' }}>
-                          Gửi câu trả lời
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Step 5: AI Instant Feedback (Capture14.PNG) */}
-                  {interviewStep === 'feedback' && (
-                    <div style={{ backgroundColor: '#fff', padding: '40px', borderRadius: 'var(--radius-xl)', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '28px' }}>
-                        <div style={{ width: '72px', height: '72px', borderRadius: '50%', backgroundColor: 'var(--primary-light)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                          <span style={{ fontSize: '22px', fontWeight: 800, color: 'var(--primary)', lineHeight: 1 }}>6.9</span>
-                          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>/ 10</span>
-                        </div>
-                        <div>
-                          <h3 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--primary)' }}>AI đánh giá câu trả lời</h3>
-                          <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Dựa trên nội dung, cấu trúc và mức độ thuyết phục</p>
-                        </div>
-                      </div>
-
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '28px' }}>
-                        {[
-                          { title: 'NHẬN XÉT NỘI DUNG', text: 'Câu trả lời bám sát yêu cầu của câu hỏi và có chiều sâu. Tuy nhiên câu trả lời khá ngắn gọn so với kỳ vọng.' },
-                          { title: 'KỸ NĂNG DIỄN ĐẠT', text: 'Giọng điệu rõ ràng, nên nhấn nhá ở phần kết luận để tăng thuyết phục.' },
-                          { title: 'GỢI Ý CẢI THIỆN', text: 'Nên bổ sung ví dụ thực tế để tăng tính thuyết phục.' }
-                        ].map((section, i) => (
-                          <div key={i}>
-                            <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--primary)', letterSpacing: '0.5px', marginBottom: '6px' }}>{section.title}</div>
-                            <p style={{ fontSize: '14px', color: 'var(--text-main)', lineHeight: 1.6 }}>{section.text}</p>
+                  {/* Step 4: Answer Question (Supports 10 distinct questions) */}
+                  {interviewStep === 'question' && (() => {
+                    const currentQuestions = interviewQuestionsMap[selectedDomain] || interviewQuestionsMap['Nhân sự'];
+                    const currentQText = currentQuestions[currentInterviewQuestionIdx] || currentQuestions[0];
+                    return (
+                      <div style={{ backgroundColor: 'var(--cream)', padding: '40px', borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-sm)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                          <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--primary-accent)', letterSpacing: '0.5px' }}>
+                            CÂU HỎI {currentInterviewQuestionIdx + 1} / {currentQuestions.length}
                           </div>
-                        ))}
-                        <div>
-                          <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--primary)', letterSpacing: '0.5px', marginBottom: '6px' }}>CÂU TRẢ LỜI THAM KHẢO</div>
-                          <div style={{ padding: '16px', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--primary-light)', fontSize: '14px', color: 'var(--text-main)', lineHeight: 1.6, fontStyle: 'italic' }}>
-                            Một câu trả lời mạnh cho câu hỏi này thường nêu rõ bối cảnh cụ thể, hành động bạn đã thực hiện và kết quả đo lường được — giúp nhà tuyển dụng hình dung năng lực thực tế của bạn thay vì chỉ nói lý thuyết chung chung.
-                          </div>
+                          <span style={{ fontSize: '12px', padding: '2px 10px', borderRadius: '10px', backgroundColor: '#dcfce7', color: 'var(--primary)', fontWeight: 700 }}>
+                            {selectedDomain} · {selectedPosition}
+                          </span>
+                        </div>
+                        <h3 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '24px', color: 'var(--primary)', lineHeight: 1.4 }}>
+                          {currentQText}
+                        </h3>
+
+                        <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+                          <button onClick={() => setAnswerMode('text')} style={{ padding: '10px 20px', borderRadius: 'var(--radius-full)', backgroundColor: answerMode === 'text' ? 'var(--primary)' : '#fff', color: answerMode === 'text' ? '#fff' : 'var(--text-main)', fontWeight: 700, border: answerMode === 'text' ? 'none' : '1px solid var(--border-color)' }}>
+                            ✍️ Trả lời văn bản
+                          </button>
+                          <button onClick={() => setAnswerMode('voice')} style={{ padding: '10px 20px', borderRadius: 'var(--radius-full)', backgroundColor: answerMode === 'voice' ? 'var(--primary)' : '#fff', color: answerMode === 'voice' ? '#fff' : 'var(--text-main)', fontWeight: 700, border: answerMode === 'voice' ? 'none' : '1px solid var(--border-color)' }}>
+                            🎙️ Trả lời giọng nói
+                          </button>
+                          <button onClick={() => { setHintQuestionOverride(currentQText); setShowQuestionHint(true); }} style={{ marginLeft: 'auto', padding: '8px 14px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: '#fff', fontWeight: 700, color: 'var(--primary)' }}>💡 Gợi ý STAR</button>
+                        </div>
+
+                        <textarea
+                          rows={6}
+                          value={interviewAnswersList[currentInterviewQuestionIdx] || ''}
+                          onChange={e => setInterviewAnswersList({ ...interviewAnswersList, [currentInterviewQuestionIdx]: e.target.value })}
+                          placeholder="Nhập câu trả lời chi tiết của bạn tại đây (áp dụng mô hình STAR)..."
+                          style={{ width: '100%', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', marginBottom: '24px', backgroundColor: '#fff', fontSize: '14px', resize: 'vertical' }}
+                        />
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <button
+                            onClick={() => {
+                              if (currentInterviewQuestionIdx > 0) setCurrentInterviewQuestionIdx(currentInterviewQuestionIdx - 1);
+                              else setInterviewStep('mode');
+                            }}
+                            style={{ padding: '10px 20px', borderRadius: 'var(--radius-full)', border: '1px solid var(--border-color)', backgroundColor: '#fff', fontWeight: 600, color: 'var(--primary)' }}
+                          >
+                            ← {currentInterviewQuestionIdx > 0 ? 'Câu trước' : 'Quay lại'}
+                          </button>
+                          <button onClick={() => setInterviewStep('feedback')} style={{ padding: '12px 28px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 700, boxShadow: '0 4px 12px rgba(20,83,45,0.2)' }}>
+                            Gửi câu trả lời câu {currentInterviewQuestionIdx + 1}
+                          </button>
                         </div>
                       </div>
+                    );
+                  })()}
 
-                      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                        <button onClick={() => setInterviewStep('summary')} style={{ padding: '12px 28px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 700, boxShadow: '0 4px 12px rgba(20,83,45,0.2)' }}>
-                          Câu tiếp theo →
-                        </button>
+                  {/* Step 5: AI Instant Feedback */}
+                  {interviewStep === 'feedback' && (() => {
+                    const currentQuestions = interviewQuestionsMap[selectedDomain] || interviewQuestionsMap['Nhân sự'];
+                    const isLastQ = currentInterviewQuestionIdx >= currentQuestions.length - 1;
+                    const userAns = interviewAnswersList[currentInterviewQuestionIdx] || '';
+                    return (
+                      <div style={{ backgroundColor: '#fff', padding: '40px', borderRadius: 'var(--radius-xl)', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '28px' }}>
+                          <div style={{ width: '72px', height: '72px', borderRadius: '50%', backgroundColor: 'var(--primary-light)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                            <span style={{ fontSize: '22px', fontWeight: 800, color: 'var(--primary)', lineHeight: 1 }}>{userAns.length > 50 ? '8.5' : '7.0'}</span>
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>/ 10</span>
+                          </div>
+                          <div>
+                            <h3 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--primary)' }}>AI đánh giá câu trả lời (Câu {currentInterviewQuestionIdx + 1}/{currentQuestions.length})</h3>
+                            <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{currentQuestions[currentInterviewQuestionIdx]}</p>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '28px' }}>
+                          {[
+                            { title: 'NHẬN XÉT NỘI DUNG', text: userAns ? `Câu trả lời của bạn có liên hệ tốt tới công việc. Bạn đã nêu được thông tin chính nhưng cần bổ sung số liệu minh chứng.` : `Bạn chưa nhập câu trả lời chi tiết. Khuyến nghị trả lời theo phương pháp STAR.` },
+                            { title: 'KỸ NĂNG DIỄN ĐẠT', text: 'Cấu trúc rõ ràng, tư duy tốt. Nên bổ sung thêm kết quả bài học đo lường được.' },
+                            { title: 'GỢI Ý CẢI THIỆN', text: 'Nên nhấn mạnh vai trò cá nhân và cách bạn vượt qua thử thách.' }
+                          ].map((section, i) => (
+                            <div key={i}>
+                              <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--primary)', letterSpacing: '0.5px', marginBottom: '6px' }}>{section.title}</div>
+                              <p style={{ fontSize: '14px', color: 'var(--text-main)', lineHeight: 1.6 }}>{section.text}</p>
+                            </div>
+                          ))}
+                          <div>
+                            <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--primary)', letterSpacing: '0.5px', marginBottom: '6px' }}>CÂU TRẢ LỜI THAM KHẢO SCHEME STAR</div>
+                            <div style={{ padding: '16px', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--primary-light)', fontSize: '14px', color: 'var(--text-main)', lineHeight: 1.6, fontStyle: 'italic' }}>
+                              "Khi đối mặt với yêu cầu này (Situation), nhiệm vụ chính của tôi là... (Task). Tôi đã chủ động làm việc với các bên liên quan và áp dụng giải pháp X (Action), kết quả đạt được tăng 25% hiệu quả (Result)."
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                          <button
+                            onClick={() => {
+                              if (isLastQ) {
+                                setInterviewStep('summary');
+                              } else {
+                                setCurrentInterviewQuestionIdx(currentInterviewQuestionIdx + 1);
+                                setInterviewStep('question');
+                              }
+                            }}
+                            style={{ padding: '12px 28px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 700, boxShadow: '0 4px 12px rgba(20,83,45,0.2)' }}
+                          >
+                            {isLastQ ? 'Xem tổng kết toàn bộ 10 câu →' : `Chuyển sang Câu ${currentInterviewQuestionIdx + 2} →`}
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
 
                   {/* Step 6: Summary Result (Capture15.PNG) */}
                   {interviewStep === 'summary' && (
@@ -1547,21 +1751,69 @@ Hãy trả về gợi ý trả lời ngắn theo phương pháp STAR, liệt kê
               {/* MÔ PHỎNG VIỆC LÀM TAB */}
               {studentTab === 'simulation' && (
                 <div className="animate-fade-in">
-                  <h2 style={{ fontSize: '26px', fontWeight: 800, marginBottom: '8px', color: 'var(--primary)' }}>Mô phỏng việc làm</h2>
-                  <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '24px' }}>Thực hành tình huống công việc thực tế từ doanh nghiệp đối tác.</p>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                    <div>
+                      <h2 style={{ fontSize: '26px', fontWeight: 800, color: 'var(--primary)', marginBottom: '4px' }}>Mô phỏng việc làm (Job Simulation)</h2>
+                      <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>Thực hành tình huống công việc thực tế từ doanh nghiệp đối tác, nhận điểm & phản hồi AI.</p>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
                     {[
-                      { title: 'Social Media Campaign - Summer 2026', company: 'NovaTech', field: 'Marketing', position: 'Intern', deadline: '31/08/2026', status: 'Mới' },
-                      { title: 'Phân tích báo cáo tài chính Q2', company: 'Techcombank', field: 'Tài chính', position: 'Fresher', deadline: '15/09/2026', status: 'Đang mở' },
-                      { title: 'Xây dựng chiến lược tuyển dụng Gen Z', company: 'Manulife', field: 'Nhân sự', position: 'Junior', deadline: '20/09/2026', status: 'Đang mở' }
+                      {
+                        title: 'Social Media Campaign - Summer 2026',
+                        company: 'NovaTech',
+                        field: 'Marketing',
+                        position: 'Intern',
+                        deadline: '31/08/2026',
+                        status: 'Mới',
+                        desc: 'Xây dựng ý tưởng và kế hoạch truyền thông cho chiến dịch mùa hè nhắm tới nhóm Gen Z.',
+                        tasks: ['Nghiên cứu insight Gen Z', 'Lập kế hoạch nội dung 4 tuần', 'Dự trù ngân sách và chỉ số KPI']
+                      },
+                      {
+                        title: 'Phân tích báo cáo tài chính Q2',
+                        company: 'Techcombank',
+                        field: 'Tài chính - Ngân hàng',
+                        position: 'Fresher',
+                        deadline: '15/09/2026',
+                        status: 'Đang mở',
+                        desc: 'Đánh giá các chỉ số khả năng thanh toán, hiệu quả hoạt động và đề xuất phương án tối ưu vốn.',
+                        tasks: ['Đánh giá bảng cân đối kế toán', 'Tính toán chỉ số ROE, ROA', 'Lập bản tóm tắt rủi ro']
+                      },
+                      {
+                        title: 'Xây dựng chiến lược tuyển dụng Gen Z',
+                        company: 'Manulife',
+                        field: 'Nhân sự',
+                        position: 'Junior',
+                        deadline: '20/09/2026',
+                        status: 'Đang mở',
+                        desc: 'Thiết kế quy trình tuyển dụng và trải nghiệm ứng viên thu hút tài năng trẻ.',
+                        tasks: ['Thiết kế Employer Branding', 'Xây dựng khung câu hỏi phỏng vấn', 'Đề xuất kênh Sourcing']
+                      }
                     ].map((sim, i) => (
-                      <div key={i} style={{ backgroundColor: '#fff', padding: '24px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
-                        <span style={{ fontSize: '11px', fontWeight: 700, padding: '3px 10px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--primary-light)', color: 'var(--primary)' }}>{sim.status}</span>
-                        <h3 style={{ fontSize: '17px', fontWeight: 800, margin: '12px 0 8px', color: 'var(--text-main)' }}>{sim.title}</h3>
-                        <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '4px' }}>{sim.company} · {sim.field}</p>
-                        <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>Vị trí: {sim.position} · Hạn: {sim.deadline}</p>
-                        <button style={{ padding: '10px 20px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 700, fontSize: '14px', width: '100%' }}>
-                          Bắt đầu mô phỏng <ArrowRight size={16} style={{ display: 'inline', verticalAlign: 'middle' }} />
+                      <div key={i} style={{ backgroundColor: '#fff', padding: '24px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                            <span style={{ fontSize: '11px', fontWeight: 700, padding: '4px 12px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--primary-light)', color: 'var(--primary)' }}>{sim.status}</span>
+                            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Hạn: {sim.deadline}</span>
+                          </div>
+                          <h3 style={{ fontSize: '18px', fontWeight: 800, marginBottom: '8px', color: 'var(--text-main)' }}>{sim.title}</h3>
+                          <p style={{ fontSize: '13px', color: 'var(--primary)', fontWeight: 700, marginBottom: '8px' }}>{sim.company} · {sim.field} (Vị trí: {sim.position})</p>
+                          <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px', lineHeight: 1.5 }}>{sim.desc}</p>
+                          
+                          <div style={{ backgroundColor: 'var(--bg-main)', padding: '12px', borderRadius: '8px', marginBottom: '16px' }}>
+                            <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-main)', marginBottom: '6px' }}>Nhiệm vụ chính:</div>
+                            <ul style={{ fontSize: '12px', color: 'var(--text-muted)', paddingLeft: '16px', margin: 0, lineHeight: 1.6 }}>
+                              {sim.tasks.map((t, tIdx) => <li key={tIdx}>{t}</li>)}
+                            </ul>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => { setActiveSimModal(sim); setSimAnswerText(''); setSimEvaluationResult(null); }}
+                          style={{ padding: '12px 20px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 700, fontSize: '14px', width: '100%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                        >
+                          Bắt đầu mô phỏng ngay <ArrowRight size={16} />
                         </button>
                       </div>
                     ))}
@@ -1569,45 +1821,218 @@ Hãy trả về gợi ý trả lời ngắn theo phương pháp STAR, liệt kê
                 </div>
               )}
 
-              {/* XÂY DỰNG CV TAB */}
+              {/* XÂY DỰNG CV & PHÂN TÍCH ATS TAB */}
               {studentTab === 'cv' && (
                 <div className="animate-fade-in">
-                  <h2 style={{ fontSize: '26px', fontWeight: 800, marginBottom: '8px', color: 'var(--primary)' }}>Xây dựng CV</h2>
-                  <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '24px' }}>Tạo CV chuẩn ATS và phân tích khớp với JD doanh nghiệp.</p>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                    <div style={{ backgroundColor: '#fff', padding: '28px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)' }}>
-                      <FileText size={28} color="var(--primary)" style={{ marginBottom: '12px' }} />
-                      <h3 style={{ fontSize: '18px', fontWeight: 800, marginBottom: '8px' }}>Tạo CV mới</h3>
-                      <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>Chọn mẫu CV chuẩn ngành, điền thông tin và xuất PDF.</p>
-                      <button style={{ padding: '10px 20px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 700 }}>Tạo CV ngay</button>
-                    </div>
-                    <div style={{ backgroundColor: '#fff', padding: '28px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)' }}>
-                      <Sparkles size={28} color="var(--primary)" style={{ marginBottom: '12px' }} />
-                      <h3 style={{ fontSize: '18px', fontWeight: 800, marginBottom: '8px' }}>Phân tích CV – JD</h3>
-                      <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>Upload CV và JD để AI đánh giá mức độ phù hợp.</p>
-                      <button style={{ padding: '10px 20px', borderRadius: 'var(--radius-full)', border: '1px solid var(--primary)', color: 'var(--primary)', fontWeight: 700, backgroundColor: '#fff' }}>Phân tích ngay</button>
-                    </div>
+                  <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
+                    <button
+                      onClick={() => setCvTab('builder')}
+                      style={{ padding: '12px 24px', borderRadius: 'var(--radius-full)', fontWeight: 700, fontSize: '15px', backgroundColor: cvTab === 'builder' ? 'var(--primary)' : '#fff', color: cvTab === 'builder' ? '#fff' : 'var(--text-main)', border: cvTab === 'builder' ? 'none' : '1px solid var(--border-color)' }}
+                    >
+                      📄 Tạo & Chỉnh sửa CV
+                    </button>
+                    <button
+                      onClick={() => setCvTab('ats')}
+                      style={{ padding: '12px 24px', borderRadius: 'var(--radius-full)', fontWeight: 700, fontSize: '15px', backgroundColor: cvTab === 'ats' ? 'var(--primary)' : '#fff', color: cvTab === 'ats' ? '#fff' : 'var(--text-main)', border: cvTab === 'ats' ? 'none' : '1px solid var(--border-color)' }}
+                    >
+                      ✨ Phân tích độ phù hợp ATS (CV vs JD)
+                    </button>
                   </div>
+
+                  {cvTab === 'builder' ? (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                      {/* Form Editor */}
+                      <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)' }}>
+                        <h3 style={{ fontSize: '18px', fontWeight: 800, marginBottom: '16px', color: 'var(--primary)' }}>Thông tin CV cá nhân</h3>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                          <div>
+                            <label style={{ fontSize: '12px', fontWeight: 700, display: 'block', marginBottom: '4px' }}>Họ và tên</label>
+                            <input type="text" value={cvData.fullName} onChange={e => setCvData({ ...cvData, fullName: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)' }} />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: '12px', fontWeight: 700, display: 'block', marginBottom: '4px' }}>Vị trí ứng tuyển</label>
+                            <input type="text" value={cvData.title} onChange={e => setCvData({ ...cvData, title: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)' }} />
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                            <div>
+                              <label style={{ fontSize: '12px', fontWeight: 700, display: 'block', marginBottom: '4px' }}>Email</label>
+                              <input type="text" value={cvData.email} onChange={e => setCvData({ ...cvData, email: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)' }} />
+                            </div>
+                            <div>
+                              <label style={{ fontSize: '12px', fontWeight: 700, display: 'block', marginBottom: '4px' }}>Số điện thoại</label>
+                              <input type="text" value={cvData.phone} onChange={e => setCvData({ ...cvData, phone: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)' }} />
+                            </div>
+                          </div>
+                          <div>
+                            <label style={{ fontSize: '12px', fontWeight: 700, display: 'block', marginBottom: '4px' }}>Tóm tắt bản thân</label>
+                            <textarea rows={3} value={cvData.summary} onChange={e => setCvData({ ...cvData, summary: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)' }} />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: '12px', fontWeight: 700, display: 'block', marginBottom: '4px' }}>Kinh nghiệm làm việc</label>
+                            <textarea rows={3} value={cvData.experience} onChange={e => setCvData({ ...cvData, experience: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)' }} />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: '12px', fontWeight: 700, display: 'block', marginBottom: '4px' }}>Dự án nổi bật</label>
+                            <textarea rows={3} value={cvData.projects} onChange={e => setCvData({ ...cvData, projects: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)' }} />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Live Preview */}
+                      <div style={{ backgroundColor: '#fff', padding: '28px', borderRadius: 'var(--radius-lg)', border: '2px solid var(--primary-border)', boxShadow: 'var(--shadow-md)', position: 'sticky', top: '90px' }}>
+                        <div style={{ borderBottom: '2px solid var(--primary)', paddingBottom: '16px', marginBottom: '16px' }}>
+                          <h2 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--primary)', margin: 0 }}>{cvData.fullName || 'Nguyễn Văn Enzy'}</h2>
+                          <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--primary-accent)', marginTop: '4px' }}>{cvData.title}</div>
+                          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '6px' }}>📧 {cvData.email} | 📞 {cvData.phone} | 🏫 {cvData.university}</div>
+                        </div>
+
+                        <div style={{ marginBottom: '16px' }}>
+                          <h4 style={{ fontSize: '13px', fontWeight: 800, color: 'var(--primary)', letterSpacing: '0.5px', marginBottom: '6px' }}>TÓM TẮT</h4>
+                          <p style={{ fontSize: '13px', color: 'var(--text-main)', lineHeight: 1.6 }}>{cvData.summary}</p>
+                        </div>
+
+                        <div style={{ marginBottom: '16px' }}>
+                          <h4 style={{ fontSize: '13px', fontWeight: 800, color: 'var(--primary)', letterSpacing: '0.5px', marginBottom: '6px' }}>KINH NGHIỆM LÀM VIỆC</h4>
+                          <p style={{ fontSize: '13px', color: 'var(--text-main)', lineHeight: 1.6 }}>{cvData.experience}</p>
+                        </div>
+
+                        <div style={{ marginBottom: '16px' }}>
+                          <h4 style={{ fontSize: '13px', fontWeight: 800, color: 'var(--primary)', letterSpacing: '0.5px', marginBottom: '6px' }}>DỰ ÁN & SẢN PHẨM</h4>
+                          <p style={{ fontSize: '13px', color: 'var(--text-main)', lineHeight: 1.6 }}>{cvData.projects}</p>
+                        </div>
+
+                        <div style={{ marginBottom: '20px' }}>
+                          <h4 style={{ fontSize: '13px', fontWeight: 800, color: 'var(--primary)', letterSpacing: '0.5px', marginBottom: '6px' }}>KỸ NĂNG CỐT LÕI</h4>
+                          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                            {cvData.skills.map(s => (
+                              <span key={s} style={{ fontSize: '11px', padding: '3px 10px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--primary-light)', color: 'var(--primary)', fontWeight: 700 }}>{s}</span>
+                            ))}
+                          </div>
+                        </div>
+
+                        <button onClick={() => alert('Đã xuất PDF mẫu thành công!')} style={{ width: '100%', padding: '12px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 700, fontSize: '14px', cursor: 'pointer' }}>
+                          📥 Tải CV xuống dạng PDF
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* ATS Analyzer */
+                    <div style={{ backgroundColor: '#fff', padding: '32px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)' }}>
+                      <h3 style={{ fontSize: '20px', fontWeight: 800, marginBottom: '8px', color: 'var(--primary)' }}>Phân tích độ tương thích CV & JD (ATS Matcher)</h3>
+                      <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '24px' }}>Dán nội dung JD tuyển dụng của doanh nghiệp và CV của bạn để AI đánh giá tỉ lệ khớp.</p>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '24px' }}>
+                        <div>
+                          <label style={{ fontSize: '13px', fontWeight: 700, display: 'block', marginBottom: '6px' }}>Nội dung Mô tả công việc (JD)</label>
+                          <textarea rows={8} value={atsJdInput} onChange={e => setAtsJdInput(e.target.value)} placeholder="Dán nội dung JD tại đây..." style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '13px' }} />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '13px', fontWeight: 700, display: 'block', marginBottom: '6px' }}>Nội dung CV của bạn</label>
+                          <textarea rows={8} value={atsCvInput} onChange={e => setAtsCvInput(e.target.value)} placeholder="Dán nội dung CV tại đây..." style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '13px' }} />
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          setAtsResult({
+                            score: 86,
+                            matchedKeywords: ['React', 'TypeScript', 'UX/UI', 'Tư duy giải quyết vấn đề', 'Web App'],
+                            missingKeywords: ['CI/CD Pipeline', 'Docker / Container', 'Automated Testing'],
+                            strengths: 'CV thể hiện rõ năng lực frontend vững vàng và kinh nghiệm làm dự án thực tế.',
+                            recommendations: 'Bổ sung thêm một số từ khóa kỹ thuật CI/CD và đo lường kết quả dự án bằng con số cụ thể.'
+                          });
+                        }}
+                        style={{ padding: '14px 28px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 700, fontSize: '15px', cursor: 'pointer', marginBottom: '24px' }}
+                      >
+                        ✨ Chạy Phân tích ATS ngay
+                      </button>
+
+                      {atsResult && (
+                        <div style={{ padding: '24px', borderRadius: '12px', backgroundColor: 'var(--cream)', border: '1px solid var(--primary-border)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
+                            <div style={{ width: '64px', height: '64px', borderRadius: '50%', backgroundColor: 'var(--primary)', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '22px' }}>
+                              {atsResult.score}%
+                            </div>
+                            <div>
+                              <h4 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--primary)', margin: 0 }}>Đánh giá tỉ lệ khớp ATS: Rất cao</h4>
+                              <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>CV của bạn phù hợp tốt với yêu cầu từ nhà tuyển dụng</div>
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                            <div style={{ backgroundColor: '#fff', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                              <div style={{ fontSize: '13px', fontWeight: 700, color: '#16a34a', marginBottom: '8px' }}>✓ Từ khóa trùng khớp ({atsResult.matchedKeywords.length})</div>
+                              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                                {atsResult.matchedKeywords.map((k: string) => <span key={k} style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '6px', backgroundColor: '#dcfce7', color: '#15803d', fontWeight: 700 }}>{k}</span>)}
+                              </div>
+                            </div>
+                            <div style={{ backgroundColor: '#fff', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                              <div style={{ fontSize: '13px', fontWeight: 700, color: '#dc2626', marginBottom: '8px' }}>⚠ Từ khóa cần bổ sung ({atsResult.missingKeywords.length})</div>
+                              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                                {atsResult.missingKeywords.map((k: string) => <span key={k} style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '6px', backgroundColor: '#fee2e2', color: '#b91c1c', fontWeight: 700 }}>{k}</span>)}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div style={{ fontSize: '13px', color: 'var(--text-main)', lineHeight: 1.6 }}>
+                            <strong>Gợi ý tối ưu:</strong> {atsResult.recommendations}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* LỘ TRÌNH AI TAB */}
+              {/* LỘ TRÌNH AI CÁ NHÂN HOÁ TAB */}
               {studentTab === 'ai-roadmap' && (
                 <div className="animate-fade-in">
-                  <h2 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '16px' }}>Lộ trình AI cá nhân hoá</h2>
-                  <div style={{ backgroundColor: '#fff', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', height: '600px' }}>
-                    <div style={{ flex: 1, padding: '24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div style={{ marginBottom: '24px' }}>
+                    <h2 style={{ fontSize: '26px', fontWeight: 800, marginBottom: '6px', color: 'var(--primary)' }}>Lộ trình AI cá nhân hoá</h2>
+                    <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>Lộ trình học tập & phát triển kỹ năng được thiết kế riêng dựa trên mục tiêu nghề nghiệp của bạn.</p>
+                  </div>
+
+                  {/* Visual Roadmap Stages */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '28px' }}>
+                    {[
+                      { stage: 'GIAI ĐOẠN 1', title: 'Nền tảng chuyên môn', status: 'Hoàn thành 100%', progress: 100, color: '#16a34a', bg: '#dcfce7', desc: 'Kiến thức cốt lõi & công cụ ngành' },
+                      { stage: 'GIAI ĐOẠN 2', title: 'Thực hành Dự án', status: 'Đang học (65%)', progress: 65, color: 'var(--primary)', bg: 'var(--primary-light)', desc: 'Mô phỏng bài tập thực tế từ DN' },
+                      { stage: 'GIAI ĐOẠN 3', title: 'CV & Phỏng vấn AI', status: 'Tiếp theo (30%)', progress: 30, color: '#d97706', bg: '#fef3c7', desc: 'Tối ưu CV ATS & Luyện phỏng vấn' },
+                      { stage: 'GIAI ĐOẠN 4', title: 'Ứng tuyển Doanh nghiệp', status: 'Mục tiêu', progress: 0, color: '#6b7280', bg: '#f3f4f6', desc: 'Kết nối mạng lưới Mentor & HR' }
+                    ].map((st, i) => (
+                      <div key={i} style={{ backgroundColor: '#fff', padding: '20px', borderRadius: 'var(--radius-lg)', border: `2px solid ${st.progress > 0 ? st.color : 'var(--border-color)'}`, boxShadow: 'var(--shadow-sm)' }}>
+                        <span style={{ fontSize: '10px', fontWeight: 800, padding: '2px 8px', borderRadius: '6px', backgroundColor: st.bg, color: st.color, letterSpacing: '0.5px' }}>{st.stage}</span>
+                        <h4 style={{ fontSize: '15px', fontWeight: 800, margin: '10px 0 4px', color: 'var(--text-main)' }}>{st.title}</h4>
+                        <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '12px' }}>{st.desc}</p>
+                        <div style={{ height: '6px', backgroundColor: '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
+                          <div style={{ width: `${st.progress}%`, height: '100%', backgroundColor: st.color }} />
+                        </div>
+                        <div style={{ fontSize: '11px', fontWeight: 700, color: st.color, marginTop: '6px', textAlign: 'right' }}>{st.status}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* AI Assistant Chatbox */}
+                  <div style={{ backgroundColor: '#fff', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', height: '480px' }}>
+                    <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--cream)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <Bot size={22} color="var(--primary)" />
+                      <div>
+                        <div style={{ fontSize: '15px', fontWeight: 800, color: 'var(--primary)' }}>Trợ lý Lộ trình AI NAVIX</div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Hỏi đáp & tự động cập nhật lộ trình cá nhân</div>
+                      </div>
+                    </div>
+                    <div style={{ flex: 1, padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px' }}>
                       {chatMessages.map((msg, idx) => (
                         <div key={idx} style={{ alignSelf: msg.sender === 'user' ? 'flex-end' : 'flex-start', maxWidth: '80%' }}>
-                          <div style={{ padding: '14px 18px', borderRadius: '16px', backgroundColor: msg.sender === 'user' ? 'var(--primary)' : 'var(--bg-main)', color: msg.sender === 'user' ? '#fff' : 'var(--text-main)', fontSize: '14px', lineHeight: 1.6 }}>
+                          <div style={{ padding: '12px 18px', borderRadius: '16px', backgroundColor: msg.sender === 'user' ? 'var(--primary)' : 'var(--bg-main)', color: msg.sender === 'user' ? '#fff' : 'var(--text-main)', fontSize: '14px', lineHeight: 1.6 }}>
                             {msg.text}
                           </div>
                         </div>
                       ))}
                     </div>
                     <div style={{ padding: '16px', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '12px' }}>
-                      <input type="text" value={chatInput} onChange={e => setChatInput(e.target.value)} placeholder="Tôi học ngành..." style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)' }} />
-                      <button onClick={handleSendChat} style={{ padding: '12px 20px', borderRadius: '8px', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 700 }}>Gửi</button>
+                      <input type="text" value={chatInput} onChange={e => setChatInput(e.target.value)} placeholder="Nhập câu hỏi hoặc ngành nghề bạn muốn tối ưu lộ trình..." style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '14px' }} />
+                      <button onClick={handleSendChat} style={{ padding: '12px 24px', borderRadius: '8px', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 700 }}>Gửi</button>
                     </div>
                   </div>
                 </div>
@@ -2259,37 +2684,111 @@ Hãy trả về gợi ý trả lời ngắn theo phương pháp STAR, liệt kê
             )}
 
             {/* Step 1: Questions (Capture7.PNG) */}
-            {careerStep === 'questions' && (
-              <div>
-                <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--primary-accent)', marginBottom: '8px' }}>SỞ THÍCH & RIASEC</div>
-                <h3 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '24px', color: 'var(--primary)' }}>
-                  {currentQuestionIdx === 0 && "Bạn thích công việc nào hơn?"}
-                  {currentQuestionIdx === 1 && "Trong một dự án nhóm, bạn thường đảm nhận vai trò gì?"}
-                  {currentQuestionIdx > 1 && "Môi trường làm việc lý tưởng của bạn là gì?"}
-                </h3>
-                
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '28px' }}>
-                  {["Phân tích dữ liệu, con số", "Sáng tạo ý tưởng, thiết kế", "Giao tiếp, kết nối với khách hàng", "Tổ chức, sắp xếp quy trình"].map((opt, oIdx) => (
-                    <button
-                      key={oIdx}
-                      onClick={() => {
-                        if (currentQuestionIdx < 2) setCurrentQuestionIdx(currentQuestionIdx + 1);
-                        else setCareerStep('result');
-                      }}
-                      style={{ padding: '16px 18px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', backgroundColor: 'var(--cream)', textAlign: 'left', fontWeight: 600, fontSize: '14px', display: 'flex', alignItems: 'center', gap: '12px' }}
-                    >
-                      <span style={{ width: '20px', height: '20px', borderRadius: '50%', border: '2px solid var(--border-color)', flexShrink: 0 }} />
-                      {opt}
-                    </button>
-                  ))}
-                </div>
+            {careerStep === 'questions' && (() => {
+              const riasecQuestions = [
+                { q: 'Bạn thích công việc nào hơn?', opts: ['Phân tích dữ liệu, con số & báo cáo', 'Sáng tạo ý tưởng, thiết kế visual', 'Giao tiếp, thuyết phục & kết nối khách hàng', 'Tổ chức, lên kế hoạch & quản lý quy trình'] },
+                { q: 'Trong dự án nhóm, bạn thường đảm nhận vai trò gì?', opts: ['Người phân tích số liệu và đưa ra giải pháp', 'Người sáng tạo nội dung và hình ảnh', 'Người thuyết trình và kết nối thành viên', 'Người điều phối tiến độ và đảm bảo chất lượng'] },
+                { q: 'Môi trường làm việc lý tưởng của bạn là gì?', opts: ['Làm với dữ liệu và báo cáo chuyên sâu', 'Làm sáng tạo trong môi trường năng động', 'Làm việc trực tiếp với khách hàng & đối tác', 'Làm theo quy trình có hệ thống và rõ ràng'] },
+              ];
+              const totalQ = riasecQuestions.length;
+              const currentQ = riasecQuestions[currentQuestionIdx];
+              const selectedAnswer = careerAnswers[currentQuestionIdx];
+              const canContinue = selectedAnswer !== undefined;
+              return (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--primary-accent)' }}>SỞ THÍCH & RIASEC</div>
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-muted)' }}>Câu {currentQuestionIdx + 1}/{totalQ}</div>
+                  </div>
+                  
+                  {/* Progress bar */}
+                  <div style={{ height: '4px', backgroundColor: '#e2e8f0', borderRadius: '2px', marginBottom: '20px', overflow: 'hidden' }}>
+                    <div style={{ width: `${((currentQuestionIdx) / totalQ) * 100}%`, height: '100%', backgroundColor: 'var(--primary)', transition: 'width 0.3s' }} />
+                  </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <button onClick={() => currentQuestionIdx > 0 ? setCurrentQuestionIdx(currentQuestionIdx - 1) : setCareerStep('form')} style={{ padding: '10px 20px', color: 'var(--text-muted)', fontWeight: 600 }}>← Quay lại</button>
-                  <button onClick={() => { if (currentQuestionIdx < 2) setCurrentQuestionIdx(currentQuestionIdx + 1); else setCareerStep('result'); }} style={{ padding: '12px 28px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 700 }}>Tiếp tục →</button>
+                  <h3 style={{ fontSize: '20px', fontWeight: 800, marginBottom: '20px', color: 'var(--primary)' }}>{currentQ.q}</h3>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '28px' }}>
+                    {currentQ.opts.map((opt, oIdx) => {
+                      const isSelected = selectedAnswer === oIdx;
+                      return (
+                        <button
+                          key={oIdx}
+                          onClick={() => setCareerAnswers({ ...careerAnswers, [currentQuestionIdx]: oIdx })}
+                          style={{
+                            padding: '16px 18px',
+                            borderRadius: 'var(--radius-md)',
+                            border: isSelected ? '2px solid var(--primary)' : '1px solid var(--border-color)',
+                            backgroundColor: isSelected ? 'var(--primary-light)' : 'var(--cream)',
+                            textAlign: 'left',
+                            fontWeight: 600,
+                            fontSize: '14px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '12px',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s'
+                          }}
+                        >
+                          <span style={{
+                            width: '22px',
+                            height: '22px',
+                            borderRadius: '50%',
+                            border: isSelected ? '2px solid var(--primary)' : '2px solid var(--border-color)',
+                            backgroundColor: isSelected ? 'var(--primary)' : 'transparent',
+                            flexShrink: 0,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            {isSelected && <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#fff' }} />}
+                          </span>
+                          <span style={{ color: isSelected ? 'var(--primary)' : 'var(--text-main)' }}>{opt}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {!canContinue && (
+                    <div style={{ fontSize: '13px', color: '#d97706', fontWeight: 600, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      ⚠ Vui lòng chọn một đáp án để tiếp tục.
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <button
+                      onClick={() => {
+                        if (currentQuestionIdx > 0) setCurrentQuestionIdx(currentQuestionIdx - 1);
+                        else setCareerStep('form');
+                      }}
+                      style={{ padding: '10px 20px', color: 'var(--text-muted)', fontWeight: 600 }}
+                    >← Quay lại</button>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <button
+                        onClick={() => { setCareerAnswers({}); setCurrentQuestionIdx(0); }}
+                        style={{ padding: '10px 16px', borderRadius: 'var(--radius-full)', border: '1px solid var(--border-color)', fontWeight: 600, fontSize: '13px' }}
+                      >Làm lại</button>
+                      <button
+                        onClick={() => {
+                          if (!canContinue) return;
+                          if (currentQuestionIdx < totalQ - 1) setCurrentQuestionIdx(currentQuestionIdx + 1);
+                          else setCareerStep('result');
+                        }}
+                        disabled={!canContinue}
+                        style={{
+                          padding: '12px 28px',
+                          borderRadius: 'var(--radius-full)',
+                          backgroundColor: canContinue ? 'var(--primary)' : '#9ca3af',
+                          color: '#fff',
+                          fontWeight: 700,
+                          cursor: canContinue ? 'pointer' : 'not-allowed'
+                        }}
+                      >Tiếp tục →</button>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* Step 2: Results & RIASEC Bar Chart (Capture8.PNG) */}
             {careerStep === 'result' && (
@@ -2339,12 +2838,139 @@ Hãy trả về gợi ý trả lời ngắn theo phương pháp STAR, liệt kê
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'center', gap: '12px' }}>
-                  <button onClick={() => setCareerStep('questions')} style={{ padding: '10px 20px', borderRadius: 'var(--radius-full)', border: '1px solid var(--border-color)', fontWeight: 700 }}>Làm lại bài test</button>
+                  <button
+                    onClick={() => { setCareerAnswers({}); setCurrentQuestionIdx(0); setCareerStep('questions'); }}
+                    style={{ padding: '10px 20px', borderRadius: 'var(--radius-full)', border: '1px solid var(--border-color)', fontWeight: 700 }}
+                  >Làm lại bài test</button>
                   <button onClick={() => { setCareerTestModalOpen(false); setStudentTab('explore'); }} style={{ padding: '10px 24px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 700 }}>Xem bản đồ nghề nghiệp →</button>
                 </div>
               </div>
             )}
 
+          </div>
+        </div>
+      )}
+
+      {/* MODAL XEM TẤT CẢ HOẠT ĐỘNG */}
+      {showActivitiesModal && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 120, padding: '24px' }}>
+          <div className="animate-fade-in" style={{ backgroundColor: '#fff', borderRadius: 'var(--radius-xl)', maxWidth: '600px', width: '100%', padding: '32px', position: 'relative', maxHeight: '80vh', overflowY: 'auto' }}>
+            <button onClick={() => setShowActivitiesModal(false)} style={{ position: 'absolute', top: '16px', right: '16px', width: '32px', height: '32px', borderRadius: '50%', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={16} /></button>
+            <h3 style={{ fontSize: '20px', fontWeight: 800, marginBottom: '4px', color: 'var(--primary)' }}>Tất cả hoạt động</h3>
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '24px' }}>Lịch sử hành trình học tập & thực hành của bạn tại NAVIX.</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {[
+                { icon: '✅', label: 'Hoàn thành bài đánh giá nghề nghiệp RIASEC', time: 'Hôm nay, 09:12', score: '89%', color: '#dcfce7', iconColor: 'var(--primary)' },
+                { icon: '💼', label: 'Hoàn thành bài mô phỏng – Social Media Campaign (NovaTech)', time: '2 ngày trước, 14:30', score: '8.4/10', color: '#dcfce7', iconColor: 'var(--primary)' },
+                { icon: '🗺️', label: 'Hoàn thành lộ trình AI cá nhân hóa – Giai đoạn 1', time: '5 ngày trước, 10:00', score: '100%', color: '#dcfce7', iconColor: 'var(--primary)' },
+                { icon: '🎤', label: 'Luyện tập phỏng vấn – Nhân sự / HR Generalist', time: '6 ngày trước, 16:45', score: '8.1/10', color: '#fef3c7', iconColor: '#d97706' },
+                { icon: '📄', label: 'Tạo CV và phân tích ATS – Đạt 86% phù hợp', time: '1 tuần trước, 11:20', score: '86%', color: '#dbeafe', iconColor: '#2563eb' },
+                { icon: '🎯', label: 'Khám phá bản đồ nghề nghiệp – Brand Marketing', time: '1 tuần trước, 09:00', score: 'Hoàn thành', color: '#f3e8ff', iconColor: '#7c3aed' },
+                { icon: '🏆', label: 'Nhận chứng chỉ Career Exploration – NAVIX', time: '10 ngày trước', score: 'Cấp chứng chỉ', color: '#dcfce7', iconColor: 'var(--primary)' }
+              ].map((act, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 16px', backgroundColor: 'var(--bg-main)', borderRadius: '10px' }}>
+                  <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: act.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', flexShrink: 0 }}>{act.icon}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-main)', marginBottom: '2px' }}>{act.label}</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{act.time}</div>
+                  </div>
+                  <span style={{ fontSize: '12px', fontWeight: 700, padding: '3px 10px', borderRadius: 'var(--radius-full)', backgroundColor: act.color, color: act.iconColor, whiteSpace: 'nowrap' }}>{act.score}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL MÔ PHỎNG VIỆC LÀM – WORKSPACE */}
+      {activeSimModal && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 120, padding: '24px' }}>
+          <div className="animate-fade-in" style={{ backgroundColor: '#fff', borderRadius: 'var(--radius-xl)', maxWidth: '780px', width: '100%', padding: '32px', position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}>
+            <button onClick={() => { setActiveSimModal(null); setSimEvaluationResult(null); setSimAnswerText(''); }} style={{ position: 'absolute', top: '16px', right: '16px', width: '32px', height: '32px', borderRadius: '50%', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={16} /></button>
+
+            <div style={{ marginBottom: '20px' }}>
+              <span style={{ fontSize: '11px', fontWeight: 700, padding: '3px 10px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--primary-light)', color: 'var(--primary)', marginBottom: '8px', display: 'inline-block' }}>{activeSimModal.status}</span>
+              <h2 style={{ fontSize: '22px', fontWeight: 800, color: 'var(--primary)', marginBottom: '4px' }}>{activeSimModal.title}</h2>
+              <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>{activeSimModal.company} · {activeSimModal.field} · Vị trí: <strong>{activeSimModal.position}</strong> · Hạn nộp: {activeSimModal.deadline}</p>
+            </div>
+
+            <div style={{ backgroundColor: 'var(--bg-main)', padding: '20px', borderRadius: '10px', marginBottom: '20px' }}>
+              <h4 style={{ fontSize: '14px', fontWeight: 800, color: 'var(--primary)', marginBottom: '10px' }}>📋 Mô tả nhiệm vụ</h4>
+              <p style={{ fontSize: '14px', color: 'var(--text-main)', lineHeight: 1.7, marginBottom: '12px' }}>{activeSimModal.desc}</p>
+              <h4 style={{ fontSize: '13px', fontWeight: 800, marginBottom: '8px', color: 'var(--text-main)' }}>Yêu cầu cụ thể:</h4>
+              <ul style={{ paddingLeft: '20px', fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.8, margin: 0 }}>
+                {activeSimModal.tasks?.map((t: string, i: number) => <li key={i}>{t}</li>)}
+              </ul>
+            </div>
+
+            {!simEvaluationResult ? (
+              <div>
+                <h4 style={{ fontSize: '15px', fontWeight: 800, marginBottom: '10px', color: 'var(--text-main)' }}>✏️ Bài làm của bạn</h4>
+                <textarea
+                  value={simAnswerText}
+                  onChange={e => setSimAnswerText(e.target.value)}
+                  placeholder={`Nhập bài làm của bạn cho đề mô phỏng "${activeSimModal.title}" tại đây...`}
+                  rows={8}
+                  style={{ width: '100%', padding: '14px', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '14px', lineHeight: 1.7, resize: 'vertical', marginBottom: '16px' }}
+                />
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                  <button onClick={() => { setActiveSimModal(null); setSimAnswerText(''); }} style={{ padding: '10px 20px', borderRadius: 'var(--radius-full)', border: '1px solid var(--border-color)', fontWeight: 600 }}>Hủy</button>
+                  <button
+                    onClick={() => {
+                      if (!simAnswerText.trim()) { alert('Vui lòng nhập bài làm trước khi nộp.'); return; }
+                      setSimEvaluationResult({
+                        score: 8.6,
+                        criteria: [
+                          { name: 'Tư duy phân tích & logic', score: 9, feedback: 'Bài làm có cấu trúc rõ ràng, phân tích insight đúng hướng.' },
+                          { name: 'Tính sáng tạo & đột phá', score: 8, feedback: 'Ý tưởng tốt, có thể bổ sung thêm các kênh đa nền tảng (TikTok, YouTube).' },
+                          { name: 'Tính khả thi & thực tiễn', score: 9, feedback: 'Kế hoạch rõ ràng, có thể triển khai thực tế.' },
+                          { name: 'Kỹ năng trình bày & thuyết phục', score: 8, feedback: 'Trình bày mạch lạc, cần bổ sung dữ liệu cụ thể hơn.' }
+                        ],
+                        overall: 'Bài làm xuất sắc! Bạn thể hiện tốt tư duy Marketing chiến lược và khả năng triển khai thực tế. Nhà tuyển dụng NovaTech đánh giá cao khả năng phân tích Gen Z Insight của bạn.'
+                      });
+                    }}
+                    style={{ padding: '12px 28px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 700, fontSize: '15px', cursor: 'pointer' }}
+                  >📤 Nộp bài & Chấm điểm AI</button>
+                </div>
+              </div>
+            ) : (
+              <div className="animate-fade-in">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '20px', padding: '20px', backgroundColor: 'var(--primary-light)', borderRadius: '12px' }}>
+                  <div style={{ width: '72px', height: '72px', borderRadius: '50%', backgroundColor: 'var(--primary)', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '22px', flexShrink: 0 }}>
+                    {simEvaluationResult.score}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--primary)' }}>Kết quả chấm điểm AI</div>
+                    <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>Điểm tổng: {simEvaluationResult.score}/10 — Xuất sắc</div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
+                  {simEvaluationResult.criteria.map((c: any, i: number) => (
+                    <div key={i} style={{ padding: '14px 16px', backgroundColor: 'var(--bg-main)', borderRadius: '8px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                        <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main)' }}>{c.name}</span>
+                        <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--primary)' }}>{c.score}/10</span>
+                      </div>
+                      <div style={{ height: '4px', backgroundColor: '#e2e8f0', borderRadius: '2px', overflow: 'hidden', marginBottom: '6px' }}>
+                        <div style={{ width: `${c.score * 10}%`, height: '100%', backgroundColor: 'var(--primary)' }} />
+                      </div>
+                      <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0 }}>{c.feedback}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ padding: '16px 20px', backgroundColor: '#fff', border: '1px solid var(--primary-border)', borderRadius: '10px', marginBottom: '16px' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--primary)', marginBottom: '6px' }}>💬 Nhận xét tổng thể từ AI Mentor</div>
+                  <p style={{ fontSize: '13px', color: 'var(--text-main)', lineHeight: 1.7, margin: 0 }}>{simEvaluationResult.overall}</p>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                  <button onClick={() => { setSimEvaluationResult(null); setSimAnswerText(''); }} style={{ padding: '10px 20px', borderRadius: 'var(--radius-full)', border: '1px solid var(--border-color)', fontWeight: 600 }}>Làm lại</button>
+                  <button onClick={() => { setActiveSimModal(null); setSimEvaluationResult(null); setSimAnswerText(''); }} style={{ padding: '12px 24px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 700 }}>Hoàn thành ✓</button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

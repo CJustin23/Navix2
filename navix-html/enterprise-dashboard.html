@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NAVIX - Enterprise Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="site-header">
+    <a href="index.html" class="logo">
+      <div style="width: 32px; height: 32px; border-radius: 8px; background-color: var(--primary); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 18px;">N</div>
+      NAVIX Enterprise
+    </a>
+    <div class="auth-buttons">
+      <span style="font-size: 14px; font-weight: 700; color: var(--primary);">NovaTech Partner</span>
+      <a href="index.html" class="btn-outline" style="color: #ef4444;" onclick="localStorage.removeItem('userRole');">Đăng xuất</a>
+    </div>
+  </header>
+
+  <!-- DASHBOARD CONTAINER -->
+  <div style="display: flex; flex: 1; height: calc(100vh - 73px);" id="enterprise-root">
+    <!-- Render từ EnterpriseDashboard engine -->
+  </div>
+
+  <div id="modal-root"></div>
+
+  <script src="data.js"></script>
+  <script src="core.js"></script>
+  <script src="components.js"></script>
+  <script src="pages.js"></script>
+  <script src="app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      window.setState({ currentPage: 'enterprise-dashboard', enterpriseTab: 'overview' });
+
+      window.renderApp = function() {
+        const root = document.getElementById('enterprise-root');
+        if (root) {
+          root.innerHTML = window.EnterpriseDashboard();
+        }
+        window.renderModals();
+        if (window.lucide) window.lucide.createIcons();
+      };
+
+      window.renderApp();
+    });
+  </script>
+</body>
+</html>

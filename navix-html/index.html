@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NAVIX - Khám phá nghề nghiệp AI</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="site-header">
+    <a href="index.html" class="logo">
+      <div style="width: 32px; height: 32px; border-radius: 8px; background-color: var(--primary); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 18px;">N</div>
+      NAVIX
+    </a>
+    <nav class="nav-links">
+      <a href="index.html" class="nav-link active">Trang chủ</a>
+      <a href="#" onclick="alert('Tính năng Giới thiệu NAVIX'); return false;" class="nav-link">Giới thiệu</a>
+      <a href="#" onclick="alert('Tính năng Doanh nghiệp'); return false;" class="nav-link">Doanh nghiệp Partner</a>
+    </nav>
+    <div class="auth-buttons" id="auth-header-actions">
+      <!-- Sẽ được JS cập nhật nếu đã đăng nhập -->
+      <a href="login.html" class="btn-outline">Đăng nhập</a>
+      <a href="login.html?role=register" class="btn-primary">Đăng ký ngay</a>
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT -->
+  <main style="flex: 1;">
+    <div class="animate-fade-in" style="padding-bottom: 60px;">
+      <!-- Hero Section -->
+      <section style="background-color: #fff; padding: 60px 24px; text-align: center; border-bottom: 1px solid var(--border-color); position: relative; overflow: hidden;">
+        <div style="position: absolute; top: -50px; left: 50%; transform: translateX(-50%); width: 600px; height: 300px; background-color: rgba(34, 197, 94, 0.08); filter: blur(80px); border-radius: 50%; pointer-events: none;"></div>
+        <div style="max-width: 800px; margin: 0 auto; position: relative; z-index: 1;">
+          <span style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 16px; border-radius: var(--radius-full); background-color: var(--primary-light); color: var(--primary); font-weight: 700; font-size: 13px; margin-bottom: 20px; border: 1px solid var(--primary-border);">
+            <i data-lucide="sparkles" style="width: 16px; height: 16px;"></i> Nền tảng Hướng nghiệp AI Hàng đầu Sinh viên Việt Nam
+          </span>
+          <h1 style="font-size: 48px; font-weight: 800; color: #0f172a; margin-bottom: 20px; line-height: 1.2;">Khám phá mình - Khai phá nghề</h1>
+          <p style="font-size: 18px; color: var(--text-muted); margin-bottom: 32px; line-height: 1.6;">
+            NAVIX là nền tảng giúp sinh viên khám phá đúng nghề, trải nghiệm công việc thực tế và xây dựng lộ trình sự nghiệp cá nhân hóa cùng AI - trước khi bước vào thị trường lao động.
+          </p>
+          <div style="display: flex; justify-content: center; gap: 16px;">
+            <a href="login.html" class="btn-primary" style="padding: 14px 32px; font-size: 16px; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);">
+              Bắt đầu trải nghiệm ngay <i data-lucide="arrow-right" style="width: 18px; height: 18px;"></i>
+            </a>
+          </div>
+        </div>
+
+        <!-- Dải số liệu -->
+        <div style="margin-top: 50px; overflow: hidden; background-color: var(--bg-main); padding: 16px 0; border-radius: var(--radius-lg); border: 1px solid var(--border-color); max-width: 900px; margin: 50px auto 0 auto;">
+          <div style="display: flex; justify-content: space-around; align-items: center; flex-wrap: wrap; gap: 20px; padding: 0 20px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div style="color: var(--primary); font-weight: 800; font-size: 20px;">5+</div>
+              <div style="font-size: 14px; font-weight: 600; color: var(--text-main);">Ngành nghề trọng điểm</div>
+            </div>
+            <div style="width: 1px; height: 24px; background-color: var(--border-color);"></div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div style="color: var(--primary); font-weight: 800; font-size: 20px;">20+</div>
+              <div style="font-size: 14px; font-weight: 600; color: var(--text-main);">Bài mô phỏng thực tế</div>
+            </div>
+            <div style="width: 1px; height: 24px; background-color: var(--border-color);"></div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div style="color: var(--primary); font-weight: 800; font-size: 20px;">AI</div>
+              <div style="font-size: 14px; font-weight: 600; color: var(--text-main);">Cá nhân hóa lộ trình</div>
+            </div>
+            <div style="width: 1px; height: 24px; background-color: var(--border-color);"></div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div style="color: var(--primary); font-weight: 800; font-size: 20px;">100%</div>
+              <div style="font-size: 14px; font-weight: 600; color: var(--text-main);">Miễn phí trải nghiệm</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Câu chuyện thương hiệu -->
+      <section style="max-width: 1000px; margin: 60px auto 0 auto; padding: 0 24px;">
+        <h2 style="text-align: center; font-size: 32px; font-weight: 800; margin-bottom: 40px;">
+          Câu chuyện thương hiệu NAVIX
+        </h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; margin-bottom: 40px;">
+          <div style="background-color: #fff; padding: 24px; border-radius: var(--radius-lg); border: 1px solid var(--border-color);">
+            <div style="width: 40px; height: 40px; border-radius: 10px; background-color: #fee2e2; color: #dc2626; display: flex; align-items: center; justify-content: center; font-weight: 700; margin-bottom: 16px;">!</div>
+            <h3 style="font-size: 18px; font-weight: 700; margin-bottom: 12px; color: #991b1b;">Vấn đề thực tế</h3>
+            <ul style="list-style-type: disc; padding-left: 18px; color: var(--text-muted); font-size: 14px; display: flex; flex-direction: column; gap: 8px;">
+              <li>Gen Z thiếu định hướng nghề nghiệp và kỹ năng thực chiến.</li>
+              <li><strong>72% Gen Z Việt Nam mong muốn nâng cao kỹ năng số</strong>, nhưng vẫn gặp khoảng cách với nhu cầu doanh nghiệp.</li>
+              <li><strong>91% doanh nghiệp gặp khó khăn khi quản lý & phát triển nhân sự Gen Z</strong>.</li>
+            </ul>
+          </div>
+          <div style="background-color: #fff; padding: 24px; border-radius: var(--radius-lg); border: 1px solid var(--border-color);">
+            <div style="width: 40px; height: 40px; border-radius: 10px; background-color: var(--primary-light); color: var(--primary); display: flex; align-items: center; justify-content: center; font-weight: 700; margin-bottom: 16px;">✓</div>
+            <h3 style="font-size: 18px; font-weight: 700; margin-bottom: 12px; color: var(--primary);">Giải pháp từ NAVIX</h3>
+            <p style="color: var(--text-muted); font-size: 14px; line-height: 1.6;">
+              NAVIX đồng hành cùng người trẻ bằng AI và hệ sinh thái hướng nghiệp, giúp <strong>khám phá bản thân - trải nghiệm thực tế - kết nối cộng đồng</strong>, để tự tin bước vào thị trường lao động.
+            </p>
+          </div>
+          <div style="background-color: #fff; padding: 24px; border-radius: var(--radius-lg); border: 1px solid var(--border-color);">
+            <div style="width: 40px; height: 40px; border-radius: 10px; background-color: #e0f2fe; color: #0284c7; display: flex; align-items: center; justify-content: center; font-weight: 700; margin-bottom: 16px;">★</div>
+            <h3 style="font-size: 18px; font-weight: 700; margin-bottom: 12px; color: #0369a1;">Sứ mệnh NAVIX</h3>
+            <p style="color: var(--text-muted); font-size: 14px; line-height: 1.6;">
+              Để mọi người trẻ đều có thể <strong>đi đúng hướng</strong> trước khi <strong>chạy thật nhanh</strong> trong sự nghiệp.
+            </p>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
