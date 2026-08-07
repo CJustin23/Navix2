@@ -46,6 +46,37 @@ interface User {
   industry?: string;
 }
 
+const DEMO_ACCOUNTS = [
+  {
+    email: 'enzy.student@navix.vn',
+    password: 'password123',
+    role: 'student' as const,
+    data: {
+      fullName: 'Nguyen Van Enzy',
+      email: 'enzy.student@navix.vn',
+      phone: '0987654321',
+      dob: '2003-05-20',
+      gender: 'Nam',
+      password: 'password123'
+    }
+  },
+  {
+    email: 'hr@novatech.com.vn',
+    password: 'novatech2026',
+    role: 'business' as const,
+    data: {
+      companyName: 'NovaTech',
+      industry: 'CNTT',
+      repName: 'Tran Minh Quan',
+      email: 'hr@novatech.com.vn',
+      phone: '0912345678',
+      website: 'https://novatech.com.vn',
+      taxCode: '0101234567',
+      notes: 'Mong muốn kết nối sinh viên IT & Marketing tiềm năng'
+    }
+  }
+];
+
 // 7 Distinct Job Maps Data
 const jobMapsDetails: Record<string, {
   title: string;
@@ -252,6 +283,30 @@ export default function App() {
     const users = JSON.parse(localStorage.getItem('navix_users') || '[]');
     return users.find((u: any) => u.email === email && u.password === password);
   };
+
+  React.useEffect(() => {
+    const users = JSON.parse(localStorage.getItem('navix_users') || '[]');
+    let updated = false;
+
+    DEMO_ACCOUNTS.forEach(account => {
+      const exists = users.some((user: any) => user.email === account.email);
+      if (!exists) {
+        users.push({
+          email: account.email,
+          password: account.password,
+          role: account.role,
+          data: account.data,
+          createdAt: new Date().toISOString(),
+          isDemo: true
+        });
+        updated = true;
+      }
+    });
+
+    if (updated) {
+      localStorage.setItem('navix_users', JSON.stringify(users));
+    }
+  }, []);
 
   const sendOTP = (email: string) => {
     const otp = Math.random().toString().slice(2, 8).padStart(6, '0');
@@ -912,6 +967,14 @@ Hãy trả về gợi ý trả lời ngắn theo phương pháp STAR, liệt kê
               </button>
             </div>
 
+            <div style={{ marginBottom: '24px', padding: '14px 16px', borderRadius: 'var(--radius-md)', backgroundColor: '#fff7ed', border: '1px solid #fdba74', fontSize: '13px', color: '#7c2d12' }}>
+              <div style={{ fontWeight: 700, marginBottom: '8px' }}>Demo credentials để đăng nhập ngay</div>
+              <div style={{ display: 'grid', gap: '6px' }}>
+                <div><strong>Student:</strong> enzy.student@navix.vn / password123</div>
+                <div><strong>Business:</strong> hr@novatech.com.vn / novatech2026</div>
+              </div>
+            </div>
+
             {registerType === 'student' && (
               <div>
                 <h3 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '16px' }}>Chọn gói dịch vụ dành cho cá nhân</h3>
@@ -1066,17 +1129,25 @@ Hãy trả về gợi ý trả lời ngắn theo phương pháp STAR, liệt kê
                 Chọn loại tài khoản để truy cập Dashboard
               </p>
 
+              <div style={{ marginBottom: '20px', padding: '14px 16px', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--bg-main)', border: '1px dashed var(--border-color)', fontSize: '13px', color: 'var(--text-main)' }}>
+                <div style={{ fontWeight: 700, marginBottom: '8px' }}>Tài khoản demo sẵn có</div>
+                <div style={{ display: 'grid', gap: '8px' }}>
+                  <div><strong>Student:</strong> enzy.student@navix.vn / password123</div>
+                  <div><strong>Business:</strong> hr@novatech.com.vn / novatech2026</div>
+                </div>
+              </div>
+
               <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', backgroundColor: 'var(--bg-main)', padding: '4px', borderRadius: 'var(--radius-md)' }}>
                 <button
                   type="button"
-                  onClick={() => { setLoginRole('student'); setLoginError(''); }}
+                  onClick={() => { setLoginRole('student'); setLoginEmail('enzy.student@navix.vn'); setLoginPassword('password123'); setLoginError(''); }}
                   style={{ flex: 1, padding: '10px', borderRadius: 'var(--radius-sm)', fontSize: '13px', fontWeight: 700, backgroundColor: loginRole === 'student' ? '#fff' : 'transparent', color: loginRole === 'student' ? 'var(--primary)' : 'var(--text-muted)' }}
                 >
                   Tôi là cá nhân
                 </button>
                 <button
                   type="button"
-                  onClick={() => { setLoginRole('business'); setLoginError(''); }}
+                  onClick={() => { setLoginRole('business'); setLoginEmail('hr@novatech.com.vn'); setLoginPassword('novatech2026'); setLoginError(''); }}
                   style={{ flex: 1, padding: '10px', borderRadius: 'var(--radius-sm)', fontSize: '13px', fontWeight: 700, backgroundColor: loginRole === 'business' ? '#fff' : 'transparent', color: loginRole === 'business' ? 'var(--primary)' : 'var(--text-muted)' }}
                 >
                   Tôi là doanh nghiệp
