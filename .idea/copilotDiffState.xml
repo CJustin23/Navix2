@@ -11,6 +11,32 @@
             </PendingDiffInfo>
           </value>
         </entry>
+        <entry key="$PROJECT_DIR$/.npmrc">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/.npmrc" />
+              <option name="updatedContent" value="optional=false&#10;" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+        <entry key="$PROJECT_DIR$/package.json">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/package.json" />
+              <option name="originalContent" value="{&#10;  &quot;name&quot;: &quot;navix2&quot;,&#10;  &quot;private&quot;: true,&#10;  &quot;workspaces&quot;: [&#10;    &quot;navix-app&quot;&#10;  ],&#10;  &quot;scripts&quot;: {&#10;    &quot;build&quot;: &quot;npm --workspace navix-app run build&quot;,&#10;    &quot;dev&quot;: &quot;npm --workspace navix-app run dev&quot;,&#10;    &quot;preview&quot;: &quot;npm --workspace navix-app run preview&quot;,&#10;    &quot;lint&quot;: &quot;npm --workspace navix-app run lint&quot;&#10;  }&#10;}" />
+              <option name="updatedContent" value="{&#13;&#10;  &quot;name&quot;: &quot;navix2&quot;,&#13;&#10;  &quot;private&quot;: true,&#13;&#10;  &quot;workspaces&quot;: [&#13;&#10;    &quot;navix-app&quot;&#13;&#10;  ],&#13;&#10;  &quot;engines&quot;: {&#10;    &quot;node&quot;: &quot;18.x&quot;&#10;  },&#10;  &quot;packageManager&quot;: &quot;npm@9&quot;,&#10;  &quot;scripts&quot;: {&#13;&#10;    &quot;build&quot;: &quot;npm --workspace navix-app run build&quot;,&#13;&#10;    &quot;dev&quot;: &quot;npm --workspace navix-app run dev&quot;,&#13;&#10;    &quot;preview&quot;: &quot;npm --workspace navix-app run preview&quot;,&#13;&#10;    &quot;lint&quot;: &quot;npm --workspace navix-app run lint&quot;&#13;&#10;  }&#13;&#10;}" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+        <entry key="$PROJECT_DIR$/vercel.json">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/vercel.json" />
+              <option name="originalContent" value="{&#10;  &quot;buildCommand&quot;: &quot;npm run build&quot;,&#10;  &quot;outputDirectory&quot;: &quot;navix-app/dist&quot;&#10;}" />
+              <option name="updatedContent" value="{&#10;  &quot;buildCommand&quot;: &quot;npm --workspace navix-app run build&quot;,&#10;  &quot;installCommand&quot;: &quot;npm ci&quot;,&#10;  &quot;outputDirectory&quot;: &quot;navix-app/dist&quot;&#10;}" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
       </map>
     </option>
   </component>
