@@ -4,6 +4,10 @@
   "workspaces": [
     "navix-app"
   ],
+  "engines": {
+    "node": "18.x"
+  },
+  "packageManager": "npm@9",
   "scripts": {
     "build": "npm --workspace navix-app run build",
     "dev": "npm --workspace navix-app run dev",
