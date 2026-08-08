@@ -1,5 +1,5 @@
 {
-  "buildCommand": "cd navix-app && npm ci && npm run build",
-  "installCommand": "cd navix-app && npm ci",
+  "buildCommand": "cd navix-app && npm install --include=optional && npm run build",
+  "installCommand": "cd navix-app && npm install --include=optional",
   "outputDirectory": "navix-app/dist"
 }
