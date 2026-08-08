@@ -1,3 +1,7 @@
+const { normalizeVietnameseText, applyCors, readJsonBody, clampText, callOpenAIChatJSON } = require('./_lib/shared');
+
+const MAX_ANSWER_LENGTH = 6000;
+
 const SIMULATION_STOP_WORDS = new Set([
   'va', 'hoac', 'nhung', 'cua', 'cho', 'voi', 'the', 'mot', 'cac', 'trong', 'de', 'duoc', 'co', 'la', 'thi', 'o', 'tai', 'tu', 'den', 'nay', 'do', 'ban', 'minh', 'nguoi', 'viec', 'dua', 'theo'
 ]);
@@ -8,16 +12,6 @@ const SIMULATION_RUBRIC = [
   { name: 'Sáng tạo & khả thi', maxScore: 20 },
   { name: 'Trình bày & chính tả', maxScore: 10 }
 ];
-
-function normalizeVietnameseText(text) {
-  return String(text || '')
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9\s%.-]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
 
 function clampScore(value, min, max) {
   return Math.min(max, Math.max(min, Math.round(Number(value) || 0)));
@@ -152,12 +146,8 @@ function normalizeOpenAIResponse(responseJson, fallback) {
 }
 
 async function evaluateWithOpenAI(payload) {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    return buildLocalSimulationEvaluation(payload);
-  }
+  const fallback = buildLocalSimulationEvaluation(payload);
 
-  const model = process.env.OPENAI_MODEL || 'gpt-4.1-mini';
   const systemPrompt = [
     'Bạn là một AI chấm bài mô phỏng nghề nghiệp bằng tiếng Việt.',
     'Chấm rất sát đề bài và chỉ dựa vào nội dung người dùng đã nộp.',
@@ -180,41 +170,15 @@ async function evaluateWithOpenAI(payload) {
     rubric: SIMULATION_RUBRIC
   }, null, 2);
 
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model,
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
-      temperature: 0.2
-    })
-  });
+  const parsed = await callOpenAIChatJSON({ systemPrompt, userContent: userPrompt });
+  // No OPENAI_API_KEY configured: silently use the local rubric-based score.
+  if (!parsed) return fallback;
 
-  if (!response.ok) {
-    throw new Error(`OpenAI error ${response.status}`);
-  }
-
-  const data = await response.json();
-  const content = data?.choices?.[0]?.message?.content;
-  if (!content) {
-    throw new Error('OpenAI did not return a score payload');
-  }
-
-  const parsed = JSON.parse(content);
-  return normalizeOpenAIResponse(parsed, buildLocalSimulationEvaluation(payload));
+  return normalizeOpenAIResponse(parsed, fallback);
 }
 
 module.exports = async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  applyCors(res);
 
   if (req.method === 'OPTIONS') {
     return res.status(204).end();
@@ -224,12 +188,14 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  const payload = readJsonBody(req);
+  if (typeof payload.answer === 'string') payload.answer = clampText(payload.answer, MAX_ANSWER_LENGTH);
+
   try {
-    const payload = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
     const evaluation = await evaluateWithOpenAI(payload);
     return res.status(200).json(evaluation);
   } catch (error) {
-    const fallback = buildLocalSimulationEvaluation(typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {}));
+    const fallback = buildLocalSimulationEvaluation(payload);
     return res.status(200).json({
       ...fallback,
       source: 'local',

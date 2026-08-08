@@ -13,5 +13,8 @@
     "dev": "npm --workspace navix-app run dev",
     "preview": "npm --workspace navix-app run preview",
     "lint": "npm --workspace navix-app run lint"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.4"
   }
 }

@@ -1,15 +1,9 @@
-function normalize(text) {
-  return String(text || '')
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9\s%.-]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
+const { normalizeVietnameseText, applyCors, readJsonBody, clampText, callOpenAIChatJSON } = require('./_lib/shared');
+
+const MAX_INPUT_LENGTH = 4000;
 
 function isLowSignalMessage(message) {
-  const normalized = normalize(message);
+  const normalized = normalizeVietnameseText(message);
   if (!normalized) return true;
 
   const words = normalized.split(' ').filter(Boolean);
@@ -20,7 +14,7 @@ function isLowSignalMessage(message) {
 }
 
 function buildRoadmapChat(payload) {
-  const message = normalize(payload.message);
+  const message = normalizeVietnameseText(payload.message);
   const position = payload?.context?.selectedPosition || 'vị trí bạn mong muốn';
   const domain = payload?.context?.selectedDomain || 'lĩnh vực phù hợp';
   if (isLowSignalMessage(message)) {
@@ -52,7 +46,7 @@ function buildRoadmapChat(payload) {
     { label: 'Khám phá nghề nghiệp', targetTab: 'explore' }
   ];
 
-  return { text, actionBtns };
+  return { text, actionBtns, source: 'local' };
 }
 
 function buildStarHint(payload) {
@@ -105,45 +99,22 @@ function buildInterviewFeedback(payload) {
   };
 }
 
-async function callOpenAI(mode, payload) {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) return null;
+function buildFallback(mode, body) {
+  if (mode === 'roadmap-chat') return buildRoadmapChat(body);
+  if (mode === 'star-hint') return buildStarHint(body);
+  if (mode === 'interview-feedback') return buildInterviewFeedback(body);
+  return { text: 'Mình chưa nhận diện được yêu cầu, nhưng vẫn có thể hỗ trợ bạn theo ngữ cảnh hiện tại.', source: 'local' };
+}
 
-  const model = process.env.OPENAI_MODEL || 'gpt-4.1-mini';
-  const prompt = JSON.stringify({ mode, payload }, null, 2);
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model,
-      response_format: { type: 'json_object' },
-      messages: [
-        {
-          role: 'system',
-          content: 'Bạn là trợ lý AI cho nền tảng hướng nghiệp NAVIX. Trả về JSON hợp lệ, ngắn gọn, hữu ích và bằng tiếng Việt.'
-        },
-        { role: 'user', content: prompt }
-      ],
-      temperature: 0.2
-    })
+async function requestAI(mode, payload) {
+  return callOpenAIChatJSON({
+    systemPrompt: 'Bạn là trợ lý AI cho nền tảng hướng nghiệp NAVIX. Trả về JSON hợp lệ, ngắn gọn, hữu ích và bằng tiếng Việt.',
+    userContent: JSON.stringify({ mode, payload }, null, 2)
   });
-
-  if (!response.ok) {
-    throw new Error(`OpenAI error ${response.status}`);
-  }
-
-  const data = await response.json();
-  const content = data?.choices?.[0]?.message?.content;
-  return content ? JSON.parse(content) : null;
 }
 
 module.exports = async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  applyCors(res);
 
   if (req.method === 'OPTIONS') {
     return res.status(204).end();
@@ -153,33 +124,19 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  const body = readJsonBody(req);
+  const mode = body.mode;
+  if (typeof body.message === 'string') body.message = clampText(body.message, MAX_INPUT_LENGTH);
+  if (typeof body.question === 'string') body.question = clampText(body.question, MAX_INPUT_LENGTH);
+  if (typeof body.answer === 'string') body.answer = clampText(body.answer, MAX_INPUT_LENGTH);
+
   try {
-    const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
-    const mode = body.mode;
-
-    const openAIResult = await callOpenAI(mode, body);
-    if (openAIResult) {
-      return res.status(200).json({ ...openAIResult, source: 'ai' });
+    const aiResult = await requestAI(mode, body);
+    if (aiResult) {
+      return res.status(200).json({ ...aiResult, source: 'ai' });
     }
-
-    if (mode === 'roadmap-chat') {
-      return res.status(200).json(buildRoadmapChat(body));
-    }
-
-    if (mode === 'star-hint') {
-      return res.status(200).json(buildStarHint(body));
-    }
-
-    if (mode === 'interview-feedback') {
-      return res.status(200).json(buildInterviewFeedback(body));
-    }
-
-    return res.status(200).json({ text: 'Mình chưa nhận diện được yêu cầu, nhưng vẫn có thể hỗ trợ bạn theo ngữ cảnh hiện tại.', source: 'local' });
+    return res.status(200).json(buildFallback(mode, body));
   } catch (error) {
-    const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
-    if (body.mode === 'roadmap-chat') return res.status(200).json(buildRoadmapChat(body));
-    if (body.mode === 'star-hint') return res.status(200).json(buildStarHint(body));
-    if (body.mode === 'interview-feedback') return res.status(200).json(buildInterviewFeedback(body));
-    return res.status(200).json({ text: 'Đã chuyển sang chế độ dự phòng nội bộ.', source: 'local', note: error?.message || 'fallback' });
+    return res.status(200).json({ ...buildFallback(mode, body), note: error?.message || 'fallback' });
   }
 };

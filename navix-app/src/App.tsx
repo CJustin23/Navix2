@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Compare from './Compare';
+import { supabase } from './lib/supabaseClient';
 import {
   LayoutDashboard,
   Compass,
@@ -16,7 +17,6 @@ import {
   Menu,
   X,
   ArrowRight,
-  CheckCircle2,
   Sparkles,
   Plus,
   MoreVertical,
@@ -46,36 +46,6 @@ interface User {
   industry?: string;
 }
 
-const DEMO_ACCOUNTS = [
-  {
-    email: 'enzy.student@navix.vn',
-    password: 'password123',
-    role: 'student' as const,
-    data: {
-      fullName: 'Nguyen Van Enzy',
-      email: 'enzy.student@navix.vn',
-      phone: '0987654321',
-      dob: '2003-05-20',
-      gender: 'Nam',
-      password: 'password123'
-    }
-  },
-  {
-    email: 'hr@novatech.com.vn',
-    password: 'novatech2026',
-    role: 'business' as const,
-    data: {
-      companyName: 'NovaTech',
-      industry: 'CNTT',
-      repName: 'Tran Minh Quan',
-      email: 'hr@novatech.com.vn',
-      phone: '0912345678',
-      website: 'https://novatech.com.vn',
-      taxCode: '0101234567',
-      notes: 'Mong muốn kết nối sinh viên IT & Marketing tiềm năng'
-    }
-  }
-];
 
 // 7 Distinct Job Maps Data
 const jobMapsDetails: Record<string, {
@@ -438,82 +408,108 @@ export default function App() {
   const [studentPlan, setStudentPlan] = useState<'free' | 'pro'>('free');
   const [emailVerified, setEmailVerified] = useState<boolean>(false);
 
-  // OTP verification states
+  // OTP verification states — the OTP itself is generated and emailed by
+  // Supabase Auth (project setting: "Confirm signup" email template set to
+  // OTP, not magic link); this app only prompts for and checks the code.
   const [showOTPModal, setShowOTPModal] = useState<boolean>(false);
-  const [generatedOTP, setGeneratedOTP] = useState<string>('');
+  const [otpPendingEmail, setOtpPendingEmail] = useState<string>('');
   const [otpInput, setOtpInput] = useState<string>('');
   const [otpError, setOtpError] = useState<string>('');
+  const [otpSending, setOtpSending] = useState<boolean>(false);
+  const [otpVerifying, setOtpVerifying] = useState<boolean>(false);
+  const [loginSubmitting, setLoginSubmitting] = useState<boolean>(false);
 
-  // Local storage helpers for user management
-  const saveUser = (email: string, password: string, role: 'student' | 'business', data: any) => {
-    const users = JSON.parse(localStorage.getItem('navix_users') || '[]');
-    if (users.find((u: any) => u.email === email)) {
-      return false; // user already exists
-    }
-    users.push({ email, password, role, data, createdAt: new Date().toISOString() });
-    localStorage.setItem('navix_users', JSON.stringify(users));
-    return true;
-  };
-
-  const findUser = (email: string, password: string): any => {
-    const users = JSON.parse(localStorage.getItem('navix_users') || '[]');
-    return users.find((u: any) => u.email === email && u.password === password);
-  };
-
+  // Drives currentUser/currentPage from the real Supabase session — fires on
+  // mount (restoring a persisted session, so reloading no longer logs you
+  // out), after signInWithPassword, and after verifyOtp (which signs the
+  // user in as part of confirming signup). Replaces the old
+  // saveUser/findUser localStorage auth entirely.
   React.useEffect(() => {
-    const users = JSON.parse(localStorage.getItem('navix_users') || '[]');
-    let updated = false;
-
-    DEMO_ACCOUNTS.forEach(account => {
-      const exists = users.some((user: any) => user.email === account.email);
-      if (!exists) {
-        users.push({
-          email: account.email,
-          password: account.password,
-          role: account.role,
-          data: account.data,
-          createdAt: new Date().toISOString(),
-          isDemo: true
-        });
-        updated = true;
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      const authUser = session?.user;
+      if (!authUser) {
+        setCurrentUser(null);
+        return;
       }
-    });
+      const role: 'student' | 'business' = authUser.user_metadata?.role === 'business' ? 'business' : 'student';
+      const companyName = authUser.user_metadata?.company_name as string | undefined;
+      const displayName = role === 'business'
+        ? (companyName || authUser.email || 'Doanh nghiệp')
+        : ((authUser.user_metadata?.full_name as string | undefined) || authUser.email || 'Sinh viên');
 
-    if (updated) {
-      localStorage.setItem('navix_users', JSON.stringify(users));
-    }
+      setCurrentUser({ name: displayName, email: authUser.email || '', role, companyName });
+      setCurrentPage(prev => {
+        if (prev !== 'home' && prev !== 'login' && prev !== 'register') return prev;
+        return role === 'business' ? 'enterprise-dashboard' : 'student-dashboard';
+      });
+    });
+    return () => listener.subscription.unsubscribe();
   }, []);
 
-  const sendOTP = (email: string) => {
-    const otp = Math.random().toString().slice(2, 8).padStart(6, '0');
-    setGeneratedOTP(otp);
-    setShowOTPModal(true);
-    setOtpInput('');
+  // Creates the (unconfirmed) Supabase Auth user and opens the OTP modal.
+  // Metadata keys must match what supabase/migrations/0001_init.sql's
+  // handle_new_user() trigger reads to populate student_details/business_details.
+  const startSignup = async (email: string, password: string, metadata: Record<string, string | undefined>) => {
     setOtpError('');
-    // In real app, would send via email API
-    console.log(`[DEMO] OTP sent to ${email}: ${otp}`);
-    alert(`[Demo] Mã OTP là: ${otp} (kiểm tra console)`);
+    setOtpSending(true);
+    try {
+      const { error } = await supabase.auth.signUp({ email, password, options: { data: metadata } });
+      if (error) {
+        alert(error.message || 'Không thể đăng ký. Vui lòng thử lại.');
+        return false;
+      }
+      setOtpPendingEmail(email);
+      setOtpInput('');
+      setShowOTPModal(true);
+      return true;
+    } catch (e: any) {
+      alert(e?.message || 'Không thể đăng ký. Vui lòng thử lại.');
+      return false;
+    } finally {
+      setOtpSending(false);
+    }
   };
 
-  const verifyOTP = () => {
-    if (otpInput === generatedOTP) {
+  const verifyOTP = async () => {
+    if (!otpInput.trim()) {
+      setOtpError('Vui lòng nhập mã OTP.');
+      return;
+    }
+    setOtpVerifying(true);
+    setOtpError('');
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        email: otpPendingEmail,
+        token: otpInput.trim(),
+        type: 'signup'
+      });
+      if (error || !data.user) {
+        setOtpError(error?.message || 'Mã OTP không chính xác. Vui lòng thử lại.');
+        return;
+      }
+      // A verified session is now active; onAuthStateChange above handles
+      // setCurrentUser + navigation.
       setEmailVerified(true);
-      setOtpError('');
       setShowOTPModal(false);
       setOtpInput('');
-    } else {
-      setOtpError('Mã OTP không chính xác. Vui lòng thử lại.');
+    } catch (e: any) {
+      setOtpError(e?.message || 'Mã OTP không chính xác. Vui lòng thử lại.');
+    } finally {
+      setOtpVerifying(false);
     }
   };
 
   // Form Registration Student
+  // Email/password left blank (unlike the other cosmetic defaults below) —
+  // registration now sends a real OTP email via Supabase Auth, so a fake
+  // pre-filled inbox the user can't check would just be confusing.
   const [studentForm, setStudentForm] = useState({
     fullName: 'Nguyen Van Enzy',
-    email: 'enzy.student@navix.vn',
+    email: '',
     phone: '0987654321',
     dob: '2003-05-20',
     gender: 'Nam',
-    password: 'password123'
+    password: ''
   });
 
   // Form Registration Business
@@ -521,7 +517,7 @@ export default function App() {
     companyName: 'NovaTech',
     industry: 'CNTT',
     repName: 'Tran Minh Quan',
-    email: 'hr@novatech.com.vn',
+    email: '',
     phone: '0912345678',
     website: 'https://novatech.com.vn',
     taxCode: '0101234567',
@@ -530,8 +526,8 @@ export default function App() {
 
   // Login flow
   const [loginRole, setLoginRole] = useState<'student' | 'business'>('student');
-  const [loginEmail, setLoginEmail] = useState<string>('enzy.student@navix.vn');
-  const [loginPassword, setLoginPassword] = useState<string>('password123');
+  const [loginEmail, setLoginEmail] = useState<string>('');
+  const [loginPassword, setLoginPassword] = useState<string>('');
   const [loginError, setLoginError] = useState<string>('');
 
   // Dashboard Active Tabs
@@ -547,6 +543,10 @@ export default function App() {
   const [careerStep, setCareerStep] = useState<'info' | 'form' | 'questions' | 'result' | 'map'>('info');
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState<number>(0);
   const [careerAnswers, setCareerAnswers] = useState<Record<number, number>>({});
+  // True only once the user has actually answered every RIASEC question and reached
+  // the result screen through the real flow (the "Xem ví dụ kết quả" preview button
+  // does NOT set this — it's just a demo shortcut, not a completed test).
+  const [careerTestCompleted, setCareerTestCompleted] = useState<boolean>(false);
 
   // AI Interview Practice Flow (Capture10 -> Capture15)
   const [interviewStep, setInterviewStep] = useState<'landing' | 'select' | 'mode' | 'question' | 'feedback' | 'summary'>('landing');
@@ -558,6 +558,10 @@ export default function App() {
   const [showQuestionHint, setShowQuestionHint] = useState<boolean>(false);
   const [currentInterviewQuestionIdx, setCurrentInterviewQuestionIdx] = useState<number>(0);
   const [interviewAnswersList, setInterviewAnswersList] = useState<Record<number, string>>({});
+  // Real per-question AI feedback captured during the current session, keyed by
+  // question index — used to compute the summary screen instead of fixed numbers.
+  const [interviewFeedbackByQuestion, setInterviewFeedbackByQuestion] = useState<Record<number, { score: number; strengths: string[]; improvements: string[] }>>({});
+  const [interviewPracticeCompleted, setInterviewPracticeCompleted] = useState<boolean>(false);
 
   // Job Simulation Workspace state
   const [activeSimModal, setActiveSimModal] = useState<any | null>(null);
@@ -586,6 +590,9 @@ export default function App() {
   const [atsJdInput, setAtsJdInput] = useState<string>('Yêu cầu vị trí: Có khả năng lập trình React / Web Frontend, sử dụng tốt TypeScript, hiểu biết về UX/UI và có tư duy giải quyết vấn đề tốt. Ưu tiên có sản phẩm demo.');
   const [atsCvInput, setAtsCvInput] = useState<string>('Hồ sơ ứng viên: Thành thạo ReactJS, HTML/CSS, JavaScript, TypeScript, đã thực hiện dự án Web App fullstack và có sản phẩm mô phỏng việc làm.');
   const [atsResult, setAtsResult] = useState<any | null>(null);
+  // "Hoàn thiện hồ sơ" journey step: cvData ships pre-filled with demo content, so
+  // presence of text isn't a real completion signal — track the actual export action.
+  const [cvCompleted, setCvCompleted] = useState<boolean>(false);
 
   // Hint generation states (AI key optional). If user provides an OpenAI key in the modal,
   // the app will try to call OpenAI from the browser (CORS permitting). Otherwise it falls
@@ -710,8 +717,9 @@ export default function App() {
   ]);
   const [selectedCandidate, setSelectedCandidate] = useState<any>(null);
 
-  // Referral State (Capture17.PNG & Capture18.PNG)
-  const [referralCount, setReferralCount] = useState<number>(8);
+  // Referral State (Capture17.PNG & Capture18.PNG) - starts at 0; only real
+  // referral actions in this session move it, no pre-filled fake progress.
+  const [referralCount, setReferralCount] = useState<number>(0);
 
   // Chat Roadmap state
   const [chatMessages, setChatMessages] = useState<Array<{ sender: 'user' | 'ai'; text: string; actionBtns?: any[] }>>([
@@ -740,7 +748,7 @@ export default function App() {
   };
 
   // Helper Login Handle
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!loginEmail.includes('@')) {
       setLoginError('Sai email.');
@@ -751,22 +759,28 @@ export default function App() {
       return;
     }
     setLoginError('');
-    const user = findUser(loginEmail, loginPassword);
-    if (!user) {
-      setLoginError('Email hoặc mật khẩu không chính xác.');
-      return;
-    }
-    if (user.role !== loginRole) {
-      setLoginError(`Tài khoản này không phải ${loginRole === 'student' ? 'cá nhân' : 'doanh nghiệp'}. Vui lòng chọn loại tài khoản đúng.`);
-      return;
-    }
-    setLoginError('');
-    if (loginRole === 'student') {
-      setCurrentUser({ name: user.data.fullName || 'Student', email: loginEmail, role: 'student' });
-      setCurrentPage('student-dashboard');
-    } else {
-      setCurrentUser({ name: user.data.companyName || 'Company', email: loginEmail, role: 'business', companyName: user.data.companyName });
-      setCurrentPage('enterprise-dashboard');
+    setLoginSubmitting(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email: loginEmail, password: loginPassword });
+      if (error || !data.user) {
+        setLoginError(
+          error?.message === 'Email not confirmed'
+            ? 'Email chưa được xác thực. Vui lòng kiểm tra hộp thư và nhập mã OTP.'
+            : 'Email hoặc mật khẩu không chính xác.'
+        );
+        return;
+      }
+      const actualRole: 'student' | 'business' = data.user.user_metadata?.role === 'business' ? 'business' : 'student';
+      if (actualRole !== loginRole) {
+        await supabase.auth.signOut();
+        setLoginError(`Tài khoản này không phải ${loginRole === 'student' ? 'cá nhân' : 'doanh nghiệp'}. Vui lòng chọn loại tài khoản đúng.`);
+        return;
+      }
+      // onAuthStateChange (registered above) takes care of setCurrentUser + navigation.
+    } catch (err: any) {
+      setLoginError(err?.message || 'Không thể đăng nhập. Vui lòng thử lại.');
+    } finally {
+      setLoginSubmitting(false);
     }
   };
 
@@ -879,6 +893,7 @@ export default function App() {
       setEmailVerified(false);
       setOtpInput('');
       setOtpError('');
+      setOtpPendingEmail('');
       setShowOTPModal(false);
     }
   }, [currentPage]);
@@ -898,6 +913,27 @@ export default function App() {
       setSimLeaderboardExpanded(false);
     }
   }, [activeSimModal]);
+
+  // "Tiến độ hành trình" — the 6 steps are the ones defined in the product spec's
+  // homepage timeline (Khám phá bản thân → Lộ trình AI cá nhân hóa → Trải nghiệm
+  // mô phỏng → Hoàn thiện hồ sơ → Luyện tập phỏng vấn → Kết nối cộng đồng). Every
+  // entry is derived from a real action the user took in this session — nothing
+  // here is a fixed placeholder, so a fresh account starts at 0/6.
+  const roadmapEngaged = chatMessages.some(m => m.sender === 'user');
+  const simBestScoreValues = Object.values(simBestScores);
+  const simulationDone = simBestScoreValues.length > 0;
+  const simBestScoreDisplay = simBestScoreValues.length ? `${Math.max(...simBestScoreValues)}/100` : '';
+  const journeySteps = [
+    { key: 'explore', label: 'Khám phá bản thân', done: careerTestCompleted, targetTab: 'explore' },
+    { key: 'roadmap', label: 'Lộ trình AI cá nhân hóa', done: roadmapEngaged, targetTab: 'ai-roadmap' },
+    { key: 'simulation', label: 'Trải nghiệm mô phỏng', done: simulationDone, targetTab: 'simulation' },
+    { key: 'cv', label: 'Hoàn thiện hồ sơ', done: cvCompleted, targetTab: 'cv' },
+    { key: 'interview', label: 'Luyện tập phỏng vấn', done: interviewPracticeCompleted, targetTab: 'interview' },
+    { key: 'referral', label: 'Kết nối cộng đồng', done: referralCount > 0, targetTab: 'referral' }
+  ] as const;
+  const journeyCompletedCount = journeySteps.filter(s => s.done).length;
+  const journeyPercent = Math.round((journeyCompletedCount / journeySteps.length) * 100);
+  const nextJourneyStep = journeySteps.find(s => !s.done) || null;
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-main)' }}>
@@ -1012,7 +1048,7 @@ export default function App() {
                 <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-main)' }}>{currentUser.name}</span>
               </div>
               <button
-                onClick={() => { setCurrentUser(null); setCurrentPage('home'); }}
+                onClick={() => { supabase.auth.signOut(); setCurrentPage('home'); }}
                 style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-muted)', fontSize: '14px', fontWeight: 500 }}
               >
                 <LogOut size={16} /> Đăng xuất
@@ -1265,11 +1301,7 @@ export default function App() {
             </div>
 
             <div style={{ marginBottom: '24px', padding: '14px 16px', borderRadius: 'var(--radius-md)', backgroundColor: '#fff7ed', border: '1px solid #fdba74', fontSize: '13px', color: '#7c2d12' }}>
-              <div style={{ fontWeight: 700, marginBottom: '8px' }}>Demo credentials để đăng nhập ngay</div>
-              <div style={{ display: 'grid', gap: '6px' }}>
-                <div><strong>Student:</strong> enzy.student@navix.vn / password123</div>
-                <div><strong>Business:</strong> hr@novatech.com.vn / novatech2026</div>
-              </div>
+              Dùng email thật của bạn — hệ thống sẽ gửi một mã OTP 6 số để xác thực trước khi tài khoản được kích hoạt.
             </div>
 
             {registerType === 'student' && (
@@ -1322,8 +1354,27 @@ export default function App() {
                       <label style={{ fontSize: '13px', fontWeight: 600, display: 'block', marginBottom: '6px' }}>Email</label>
                       <div style={{ display: 'flex', gap: '8px' }}>
                         <input type="email" value={studentForm.email} onChange={e => setStudentForm({ ...studentForm, email: e.target.value })} style={{ flex: 1, padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }} />
-                        <button onClick={() => { if (studentForm.email) sendOTP(studentForm.email); else alert('Vui lòng nhập email trước'); }} disabled={emailVerified} style={{ padding: '0 16px', borderRadius: 'var(--radius-sm)', backgroundColor: emailVerified ? '#dcfce7' : 'var(--primary-light)', color: emailVerified ? '#166534' : 'var(--primary)', fontWeight: 600, fontSize: '13px', border: '1px solid var(--primary-border)' }}>
-                          {emailVerified ? '✓ Đã xác thực' : 'Xác thực Email'}
+                        <button
+                          onClick={() => {
+                            if (!studentForm.fullName || !studentForm.email || !studentForm.password) {
+                              alert('Vui lòng điền Họ tên, Email và Mật khẩu trước khi xác thực.');
+                              return;
+                            }
+                            if (studentForm.password.length < 6) {
+                              alert('Mật khẩu cần tối thiểu 6 ký tự.');
+                              return;
+                            }
+                            startSignup(studentForm.email, studentForm.password, {
+                              role: 'student',
+                              full_name: studentForm.fullName,
+                              phone: studentForm.phone,
+                              dob: studentForm.dob,
+                              gender: studentForm.gender
+                            });
+                          }}
+                          disabled={emailVerified || otpSending}
+                          style={{ padding: '0 16px', borderRadius: 'var(--radius-sm)', backgroundColor: emailVerified ? '#dcfce7' : 'var(--primary-light)', color: emailVerified ? '#166534' : 'var(--primary)', fontWeight: 600, fontSize: '13px', border: '1px solid var(--primary-border)' }}>
+                          {emailVerified ? '✓ Đã xác thực' : otpSending ? 'Đang gửi mã...' : 'Xác thực Email'}
                         </button>
                       </div>
                     </div>
@@ -1341,23 +1392,18 @@ export default function App() {
 
                     <button
                       onClick={() => {
-                        if (!studentForm.fullName || !studentForm.email || !studentForm.password || !emailVerified) {
-                          alert('Vui lòng điền đầy đủ thông tin và xác thực email');
+                        if (!emailVerified) {
+                          alert('Vui lòng xác thực email trước.');
                           return;
                         }
-                        if (saveUser(studentForm.email, studentForm.password, 'student', studentForm)) {
-                          alert('Đăng ký thành công! Vui lòng đăng nhập.');
-                          setLoginRole('student');
-                          setLoginEmail(studentForm.email);
-                          setLoginPassword('');
-                          setCurrentPage('login');
-                        } else {
-                          alert('Email này đã được đăng ký rồi.');
-                        }
+                        // verifyOTP already established a signed-in session;
+                        // onAuthStateChange takes it from here.
+                        setCurrentPage('student-dashboard');
                       }}
-                      style={{ marginTop: '12px', padding: '14px', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 700, fontSize: '15px' }}
+                      disabled={!emailVerified}
+                      style={{ marginTop: '12px', padding: '14px', borderRadius: 'var(--radius-md)', backgroundColor: emailVerified ? 'var(--primary)' : '#9ca3af', color: '#fff', fontWeight: 700, fontSize: '15px', cursor: emailVerified ? 'pointer' : 'not-allowed' }}
                     >
-                      Đăng ký ngay
+                      Vào Dashboard
                     </button>
                   </div>
                 </div>
@@ -1384,27 +1430,43 @@ export default function App() {
                       <label style={{ fontSize: '13px', fontWeight: 600, display: 'block', marginBottom: '6px' }}>Tên công ty *</label>
                       <input type="text" value={businessForm.companyName} onChange={e => setBusinessForm({ ...businessForm, companyName: e.target.value })} style={{ width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }} />
                     </div>
+                    <div>
+                      <label style={{ fontSize: '13px', fontWeight: 600, display: 'block', marginBottom: '6px' }}>Email công ty *</label>
+                      <input type="email" value={businessForm.email} onChange={e => setBusinessForm({ ...businessForm, email: e.target.value })} placeholder="hr@congty.vn" style={{ width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }} />
+                    </div>
+                    {emailVerified ? (
+                      <div style={{ padding: '12px 14px', borderRadius: 'var(--radius-sm)', backgroundColor: '#dcfce7', color: '#166534', fontWeight: 600, fontSize: '13px' }}>✓ Email đã xác thực — sẵn sàng vào Dashboard.</div>
+                    ) : null}
                     <button
-                      onClick={() => {
+                      onClick={async () => {
+                        if (emailVerified) {
+                          setCurrentPage('enterprise-dashboard');
+                          return;
+                        }
                         if (!businessForm.companyName || !businessForm.email) {
                           alert('Vui lòng điền Tên công ty và Email');
                           return;
                         }
-                        // Generate temp password for business account
+                        // Generate a temp password for the business account —
+                        // shown once here; a "change password" flow is Phase 3.
                         const tempPassword = Math.random().toString(36).slice(2, 10);
-                        if (saveUser(businessForm.email, tempPassword, 'business', businessForm)) {
-                          alert('Yêu cầu tư vấn đã được gửi tới Admin NAVIX!\nMật khẩu tạm: ' + tempPassword);
-                          setLoginRole('business');
-                          setLoginEmail(businessForm.email);
-                          setLoginPassword('');
-                          setCurrentPage('login');
-                        } else {
-                          alert('Email này đã được đăng ký rồi.');
+                        const started = await startSignup(businessForm.email, tempPassword, {
+                          role: 'business',
+                          company_name: businessForm.companyName,
+                          industry: businessForm.industry,
+                          rep_name: businessForm.repName,
+                          website: businessForm.website,
+                          tax_code: businessForm.taxCode,
+                          notes: businessForm.notes
+                        });
+                        if (started) {
+                          alert('Đã gửi mã OTP xác thực tới email công ty.\nMật khẩu tạm để đăng nhập lần đầu: ' + tempPassword);
                         }
                       }}
-                      style={{ marginTop: '12px', padding: '14px', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 700, fontSize: '15px' }}
+                      disabled={otpSending}
+                      style={{ marginTop: '12px', padding: '14px', borderRadius: 'var(--radius-md)', backgroundColor: otpSending ? '#9ca3af' : 'var(--primary)', color: '#fff', fontWeight: 700, fontSize: '15px', cursor: otpSending ? 'not-allowed' : 'pointer' }}
                     >
-                      Liên hệ tư vấn & Tạo tài khoản
+                      {emailVerified ? 'Vào Dashboard' : otpSending ? 'Đang gửi mã...' : 'Liên hệ tư vấn & Tạo tài khoản'}
                     </button>
                   </div>
                 </div>
@@ -1426,25 +1488,17 @@ export default function App() {
                 Chọn loại tài khoản để truy cập Dashboard
               </p>
 
-              <div style={{ marginBottom: '20px', padding: '14px 16px', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--bg-main)', border: '1px dashed var(--border-color)', fontSize: '13px', color: 'var(--text-main)' }}>
-                <div style={{ fontWeight: 700, marginBottom: '8px' }}>Tài khoản demo sẵn có</div>
-                <div style={{ display: 'grid', gap: '8px' }}>
-                  <div><strong>Student:</strong> enzy.student@navix.vn / password123</div>
-                  <div><strong>Business:</strong> hr@novatech.com.vn / novatech2026</div>
-                </div>
-              </div>
-
               <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', backgroundColor: 'var(--bg-main)', padding: '4px', borderRadius: 'var(--radius-md)' }}>
                 <button
                   type="button"
-                  onClick={() => { setLoginRole('student'); setLoginEmail('enzy.student@navix.vn'); setLoginPassword('password123'); setLoginError(''); }}
+                  onClick={() => { setLoginRole('student'); setLoginError(''); }}
                   style={{ flex: 1, padding: '10px', borderRadius: 'var(--radius-sm)', fontSize: '13px', fontWeight: 700, backgroundColor: loginRole === 'student' ? '#fff' : 'transparent', color: loginRole === 'student' ? 'var(--primary)' : 'var(--text-muted)' }}
                 >
                   Tôi là cá nhân
                 </button>
                 <button
                   type="button"
-                  onClick={() => { setLoginRole('business'); setLoginEmail('hr@novatech.com.vn'); setLoginPassword('novatech2026'); setLoginError(''); }}
+                  onClick={() => { setLoginRole('business'); setLoginError(''); }}
                   style={{ flex: 1, padding: '10px', borderRadius: 'var(--radius-sm)', fontSize: '13px', fontWeight: 700, backgroundColor: loginRole === 'business' ? '#fff' : 'transparent', color: loginRole === 'business' ? 'var(--primary)' : 'var(--text-muted)' }}
                 >
                   Tôi là doanh nghiệp
@@ -1469,8 +1523,8 @@ export default function App() {
                   <input type="password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} placeholder="••••••••" style={{ width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }} />
                 </div>
 
-                <button type="submit" style={{ marginTop: '8px', padding: '12px', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 700, fontSize: '15px' }}>
-                  Đăng nhập
+                <button type="submit" disabled={loginSubmitting} style={{ marginTop: '8px', padding: '12px', borderRadius: 'var(--radius-md)', backgroundColor: loginSubmitting ? '#9ca3af' : 'var(--primary)', color: '#fff', fontWeight: 700, fontSize: '15px', cursor: loginSubmitting ? 'not-allowed' : 'pointer' }}>
+                  {loginSubmitting ? 'Đang đăng nhập...' : 'Đăng nhập'}
                 </button>
 
                 <div style={{ textAlign: 'center', marginTop: '12px', fontSize: '13px', color: 'var(--text-muted)' }}>
@@ -1554,7 +1608,7 @@ export default function App() {
                 </nav>
               </div>
 
-              <button onClick={() => { setCurrentUser(null); setCurrentPage('home'); }} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', borderRadius: 'var(--radius-md)', color: '#ef4444', fontSize: '14px', fontWeight: 600 }}>
+              <button onClick={() => { supabase.auth.signOut(); setCurrentPage('home'); }} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', borderRadius: 'var(--radius-md)', color: '#ef4444', fontSize: '14px', fontWeight: 600 }}>
                 <LogOut size={18} />
                 {!sidebarCollapsed && <span>Đăng xuất</span>}
               </button>
@@ -1585,21 +1639,21 @@ export default function App() {
                         </p>
                       </div>
                       <div style={{ textAlign: 'right' }}>
-                        <span style={{ fontSize: '28px', fontWeight: 800, color: 'var(--primary)' }}>68%</span>
+                        <span style={{ fontSize: '28px', fontWeight: 800, color: 'var(--primary)' }}>{journeyPercent}%</span>
                         <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>hoàn thành</div>
                       </div>
                     </div>
 
                     <div style={{ height: '10px', backgroundColor: '#e2e8f0', borderRadius: '10px', overflow: 'hidden', marginBottom: '16px' }}>
-                      <div style={{ width: '68%', height: '100%', backgroundColor: 'var(--primary)', borderRadius: '10px' }} />
+                      <div style={{ width: `${journeyPercent}%`, height: '100%', backgroundColor: 'var(--primary)', borderRadius: '10px' }} />
                     </div>
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--primary)' }}>
-                        4/6 bước đã hoàn thành
+                        {journeyCompletedCount}/{journeySteps.length} bước đã hoàn thành
                       </span>
                       <span style={{ fontSize: '12px', padding: '4px 12px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--primary-light)', color: 'var(--primary)', fontWeight: 700, border: '1px solid var(--primary-border)' }}>
-                        • Đang trên đà phát triển
+                        • {journeyCompletedCount === 0 ? 'Mới bắt đầu hành trình' : journeyCompletedCount === journeySteps.length ? 'Đã hoàn thành hành trình' : 'Đang trên đà phát triển'}
                       </span>
                     </div>
                   </div>
@@ -1613,25 +1667,52 @@ export default function App() {
                         Đề xuất cá nhân hóa dựa trên tiến độ và mục tiêu của bạn.
                       </p>
 
-                      <div style={{ backgroundColor: 'var(--primary-light)', padding: '20px', borderRadius: 'var(--radius-md)', border: '1px solid var(--primary-border)', display: 'flex', gap: '16px', alignItems: 'center' }}>
-                        <div style={{ width: '80px', height: '80px', borderRadius: '12px', backgroundColor: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: '36px' }}>
-                          💼
-                        </div>
-                        <div style={{ flex: 1 }}>
-                        <h4 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '8px' }}>
-                          Mô phỏng việc làm
-                        </h4>
-                        <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px', lineHeight: 1.5 }}>
-                          Thực hành một tình huống công việc thực tế để áp dụng những năng lực bạn đã phát triển trong lộ trình.
-                        </p>
-                        <button onClick={() => setStudentTab('simulation')} style={{ padding: '10px 20px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 700, fontSize: '14px', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                          Bắt đầu mô phỏng <ArrowRight size={16} />
-                        </button>
-                        </div>
-                      </div>
+                      {(() => {
+                        const recommendations: Record<string, { icon: string; title: string; desc: string; cta: string }> = {
+                          explore: { icon: '🧭', title: 'Khám phá bản thân', desc: 'Làm bài đánh giá RIASEC để xác định hướng nghề phù hợp trước khi bắt đầu lộ trình.', cta: 'Khám phá nghề nghiệp ngay' },
+                          roadmap: { icon: '🤖', title: 'Lộ trình AI cá nhân hoá', desc: 'Trò chuyện với AI để nhận lộ trình phát triển được cá nhân hóa theo mục tiêu của bạn.', cta: 'Trò chuyện với AI ngay' },
+                          simulation: { icon: '💼', title: 'Mô phỏng việc làm', desc: 'Thực hành một tình huống công việc thực tế để áp dụng những năng lực bạn đã phát triển trong lộ trình.', cta: 'Bắt đầu mô phỏng' },
+                          cv: { icon: '📄', title: 'Hoàn thiện hồ sơ', desc: 'Cập nhật CV và xuất bản để sẵn sàng ứng tuyển.', cta: 'Cập nhật CV ngay' },
+                          interview: { icon: '🎤', title: 'Luyện tập phỏng vấn', desc: 'Luyện trả lời câu hỏi phỏng vấn theo ngành và nhận phản hồi tức thì từ AI.', cta: 'Luyện tập ngay' },
+                          referral: { icon: '🎁', title: 'Kết nối cộng đồng', desc: 'Giới thiệu bạn bè tham gia NAVIX để mở khóa ưu đãi và hoàn thành hành trình.', cta: 'Giới thiệu ngay' }
+                        };
+                        if (!nextJourneyStep) {
+                          return (
+                            <div style={{ backgroundColor: 'var(--primary-light)', padding: '20px', borderRadius: 'var(--radius-md)', border: '1px solid var(--primary-border)', display: 'flex', gap: '16px', alignItems: 'center' }}>
+                              <div style={{ width: '80px', height: '80px', borderRadius: '12px', backgroundColor: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: '36px' }}>🏆</div>
+                              <div style={{ flex: 1 }}>
+                                <h4 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '8px' }}>Bạn đã hoàn thành hành trình!</h4>
+                                <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px', lineHeight: 1.5 }}>Cả 6 bước đều đã xong. Xem chứng chỉ xác thực của bạn ngay.</p>
+                                <button onClick={() => setStudentTab('cert')} style={{ padding: '10px 20px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 700, fontSize: '14px', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                                  Xem chứng chỉ <ArrowRight size={16} />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        }
+                        const rec = recommendations[nextJourneyStep.key];
+                        return (
+                          <div style={{ backgroundColor: 'var(--primary-light)', padding: '20px', borderRadius: 'var(--radius-md)', border: '1px solid var(--primary-border)', display: 'flex', gap: '16px', alignItems: 'center' }}>
+                            <div style={{ width: '80px', height: '80px', borderRadius: '12px', backgroundColor: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: '36px' }}>
+                              {rec.icon}
+                            </div>
+                            <div style={{ flex: 1 }}>
+                            <h4 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '8px' }}>
+                              {rec.title}
+                            </h4>
+                            <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px', lineHeight: 1.5 }}>
+                              {rec.desc}
+                            </p>
+                            <button onClick={() => setStudentTab(nextJourneyStep.targetTab)} style={{ padding: '10px 20px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 700, fontSize: '14px', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                              {rec.cta} <ArrowRight size={16} />
+                            </button>
+                            </div>
+                          </div>
+                        );
+                      })()}
 
                       <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '12px' }}>
-                        ⓘ Đây là đề xuất dành riêng cho bạn. Nội dung có thể thay đổi theo tiến độ.
+                        ⓘ Đây là đề xuất dành riêng cho bạn. Nội dung tự động thay đổi theo tiến độ thật của bạn.
                       </div>
                     </div>
 
@@ -1640,37 +1721,43 @@ export default function App() {
                         HOẠT ĐỘNG GẦN ĐÂY
                       </h3>
 
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            <div style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: '#dcfce7', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                              <CheckCircle2 size={18} />
-                            </div>
-                            <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-main)' }}>Hoàn thành bài đánh giá nghề nghiệp</span>
+                      {(() => {
+                        const activityMeta: Record<string, { icon: typeof Compass; label: string }> = {
+                          explore: { icon: Compass, label: 'Hoàn thành bài đánh giá nghề nghiệp RIASEC' },
+                          roadmap: { icon: GitMerge, label: 'Trò chuyện với AI để dựng lộ trình cá nhân hóa' },
+                          simulation: { icon: Briefcase, label: 'Hoàn thành bài mô phỏng việc làm' },
+                          cv: { icon: FileText, label: 'Xuất CV cá nhân' },
+                          interview: { icon: Mic, label: 'Hoàn thành buổi luyện tập phỏng vấn' },
+                          referral: { icon: Share2, label: 'Giới thiệu bạn bè tham gia NAVIX' }
+                        };
+                        const doneSteps = journeySteps.filter(s => s.done);
+                        if (doneSteps.length === 0) {
+                          return (
+                            <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+                              Bạn chưa có hoạt động nào trong hành trình. Bắt đầu với "{nextJourneyStep?.label}" ở bên cạnh nhé!
+                            </p>
+                          );
+                        }
+                        return (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                            {doneSteps.map(s => {
+                              const meta = activityMeta[s.key];
+                              const Icon = meta.icon;
+                              return (
+                                <div key={s.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                    <div style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: '#dcfce7', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                      <Icon size={18} />
+                                    </div>
+                                    <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-main)' }}>{meta.label}</span>
+                                  </div>
+                                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Trong phiên này</span>
+                                </div>
+                              );
+                            })}
                           </div>
-                          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Hôm nay</span>
-                        </div>
-
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            <div style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: '#dcfce7', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                              <Briefcase size={18} />
-                            </div>
-                            <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-main)' }}>Hoàn thành bài mô phỏng việc làm</span>
-                          </div>
-                          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>2 ngày trước</span>
-                        </div>
-
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            <div style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: '#dcfce7', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                              <GitMerge size={18} />
-                            </div>
-                            <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-main)' }}>Hoàn thành lộ trình AI cá nhân hóa</span>
-                          </div>
-                          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>5 ngày trước</span>
-                        </div>
-                      </div>
+                        );
+                      })()}
 
                       <button onClick={() => setShowActivitiesModal(true)} style={{ marginTop: '16px', fontSize: '13px', fontWeight: 700, color: 'var(--primary)', display: 'inline-flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
                         Xem tất cả hoạt động <ChevronRight size={16} />
@@ -1683,16 +1770,19 @@ export default function App() {
                       CHỨNG CHỈ
                     </h3>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '20px', alignItems: 'center', background: 'linear-gradient(135deg, #0f3d27 0%, #14532d 55%, #1f7a46 100%)', borderRadius: '24px', padding: '24px', color: '#fff', boxShadow: '0 18px 40px rgba(15, 61, 39, 0.16)' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '20px', alignItems: 'center', background: journeyPercent === 100 ? 'linear-gradient(135deg, #0f3d27 0%, #14532d 55%, #1f7a46 100%)' : 'linear-gradient(135deg, #4b5563 0%, #374151 100%)', borderRadius: '24px', padding: '24px', color: '#fff', boxShadow: '0 18px 40px rgba(15, 61, 39, 0.16)' }}>
                       <div>
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 12px', borderRadius: '999px', backgroundColor: 'rgba(255,255,255,0.12)', fontSize: '12px', fontWeight: 700, marginBottom: '14px' }}>
-                          <Award size={14} /> Certificate Spotlight
+                          <Award size={14} /> {journeyPercent === 100 ? 'Certificate Spotlight' : 'Chứng chỉ chưa mở khóa'}
                         </div>
                         <div style={{ fontSize: '26px', fontWeight: 900, marginBottom: '6px', lineHeight: 1.15 }}>Career Exploration - NAVIX</div>
-                        <div style={{ fontSize: '13px', opacity: 0.88, marginBottom: '14px' }}>Hoàn thành hành trình khám phá nghề nghiệp và nhận chứng chỉ xác thực từ NAVIX AI.</div>
+                        <div style={{ fontSize: '13px', opacity: 0.88, marginBottom: '14px' }}>
+                          {journeyPercent === 100
+                            ? 'Bạn đã hoàn thành hành trình khám phá nghề nghiệp và nhận chứng chỉ xác thực từ NAVIX AI.'
+                            : `Hoàn thành nốt ${journeySteps.length - journeyCompletedCount} bước còn lại trong hành trình để nhận chứng chỉ xác thực từ NAVIX AI.`}
+                        </div>
                         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                          <span style={{ padding: '7px 12px', borderRadius: '999px', backgroundColor: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.14)', fontSize: '12px', fontWeight: 700 }}>Cấp ngày: 20/05/2025</span>
-                          <span style={{ padding: '7px 12px', borderRadius: '999px', backgroundColor: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.14)', fontSize: '12px', fontWeight: 700 }}>Điểm: 89/100</span>
+                          <span style={{ padding: '7px 12px', borderRadius: '999px', backgroundColor: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.14)', fontSize: '12px', fontWeight: 700 }}>Tiến độ: {journeyPercent}/100</span>
                         </div>
                       </div>
 
@@ -1823,7 +1913,15 @@ export default function App() {
                         <p style={{ color: '#555e5b', fontSize: '15px', marginBottom: '28px', lineHeight: 1.7 }}>
                           Chọn lĩnh vực, vị trí và doanh nghiệp mong muốn — hệ thống dựng đề bài phỏng vấn tương ứng, chấm điểm và góp ý ngay sau mỗi câu trả lời để bạn sẵn sàng hơn trước vòng tuyển dụng thật.
                         </p>
-                        <button onClick={() => setInterviewStep('select')} style={{ padding: '14px 28px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 700, fontSize: '15px', display: 'inline-flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 12px rgba(20,83,45,0.25)' }}>
+                        <button
+                          onClick={() => {
+                            setInterviewAnswersList({});
+                            setInterviewFeedbackByQuestion({});
+                            setCurrentInterviewQuestionIdx(0);
+                            setInterviewAiFeedback(null);
+                            setInterviewStep('select');
+                          }}
+                          style={{ padding: '14px 28px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 700, fontSize: '15px', display: 'inline-flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 12px rgba(20,83,45,0.25)' }}>
                           Bắt đầu luyện tập <ArrowRight size={18} />
                         </button>
                       </div>
@@ -1999,6 +2097,14 @@ export default function App() {
                                 const currentQuestion = currentQuestions[currentInterviewQuestionIdx];
                                 const evaluation = await evaluateInterviewAnswer(currentQuestion, currentAnswer);
                                 setInterviewAiFeedback(evaluation);
+                                setInterviewFeedbackByQuestion(prev => ({
+                                  ...prev,
+                                  [currentInterviewQuestionIdx]: {
+                                    score: Number(evaluation?.score) || 0,
+                                    strengths: Array.isArray(evaluation?.strengths) ? evaluation.strengths : [],
+                                    improvements: Array.isArray(evaluation?.improvements) ? evaluation.improvements : []
+                                  }
+                                }));
                                 setInterviewStep('feedback');
                               } finally {
                                 setInterviewAiFeedbackLoading(false);
@@ -2068,6 +2174,7 @@ export default function App() {
                           <button
                             onClick={() => {
                               if (isLastQ) {
+                                setInterviewPracticeCompleted(true);
                                 setInterviewStep('summary');
                               } else {
                                 setInterviewAiFeedback(null);
@@ -2084,68 +2191,89 @@ export default function App() {
                     );
                   })()}
 
-                  {/* Step 6: Summary Result (Capture15.PNG) */}
-                  {interviewStep === 'summary' && (
-                    <div style={{ backgroundColor: 'var(--cream)', padding: '48px 40px', borderRadius: 'var(--radius-xl)', textAlign: 'center' }}>
-                      <div style={{ position: 'relative', width: '120px', height: '120px', margin: '0 auto 12px' }}>
-                        <svg viewBox="0 0 120 120" style={{ width: '120px', height: '120px', transform: 'rotate(-90deg)' }}>
-                          <circle cx="60" cy="60" r="52" fill="none" stroke="#e2e8f0" strokeWidth="10" />
-                          <circle cx="60" cy="60" r="52" fill="none" stroke="var(--primary)" strokeWidth="10" strokeDasharray={`${2 * Math.PI * 52 * 0.72} ${2 * Math.PI * 52}`} strokeLinecap="round" />
-                        </svg>
-                        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                          <span style={{ fontSize: '32px', fontWeight: 800, color: 'var(--primary)', lineHeight: 1 }}>7.2</span>
-                          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>/ 10 điểm</span>
-                        </div>
-                      </div>
-                      <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--primary-accent)', backgroundColor: 'var(--primary-light)', padding: '4px 12px', borderRadius: 'var(--radius-full)' }}>• Kết quả buổi luyện tập</span>
-                      <h3 style={{ fontSize: '26px', fontWeight: 800, margin: '12px 0 8px', color: 'var(--primary)' }}>Điểm trung bình toàn buổi</h3>
-                      <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '28px' }}>Vị trí: C&B Executive · Doanh nghiệp: Manulife · Theo doanh nghiệp</p>
+                  {/* Step 6: Summary Result (Capture15.PNG) — computed from the feedback
+                      actually captured this session, not fixed demo numbers. */}
+                  {interviewStep === 'summary' && (() => {
+                    const currentQuestions = interviewQuestionsMap[selectedDomain] || interviewQuestionsMap['Nhân sự'];
+                    const answeredEntries = Object.entries(interviewFeedbackByQuestion)
+                      .map(([idx, feedback]) => ({ idx: Number(idx), ...feedback }))
+                      .sort((a, b) => a.idx - b.idx);
+                    const answeredCount = answeredEntries.length;
+                    const avgScore100 = answeredCount
+                      ? answeredEntries.reduce((sum, e) => sum + e.score, 0) / answeredCount
+                      : 0;
+                    const avgScore10 = avgScore100 / 10;
+                    const ratio = Math.max(0, Math.min(1, avgScore100 / 100));
+                    const topStrengths = Array.from(new Set(answeredEntries.flatMap(e => e.strengths))).slice(0, 3);
+                    const topImprovements = Array.from(new Set(answeredEntries.flatMap(e => e.improvements))).slice(0, 3);
 
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '24px', textAlign: 'left' }}>
-                        {[
-                          { round: 'VÒNG 2: PHỎNG VẤN VỚI HR', score: 6.7 },
-                          { round: 'VÒNG 3: PHỎNG VẤN VỚI QUẢN LÝ TRỰC TIẾP', score: 7.7 },
-                          { round: 'VÒNG 4: PHỎNG VẤN VỚI CẤP LÃNH ĐẠO (C-LEVEL)', score: 7.4 }
-                        ].map((r, i) => (
-                          <div key={i} style={{ padding: '20px', borderRadius: 'var(--radius-md)', backgroundColor: '#fff', border: '1px solid var(--border-color)' }}>
-                            <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '8px', letterSpacing: '0.3px' }}>{r.round}</div>
-                            <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--primary)', marginBottom: '8px' }}>{r.score}</div>
-                            <div style={{ height: '4px', backgroundColor: '#e2e8f0', borderRadius: '2px', overflow: 'hidden' }}>
-                              <div style={{ width: `${r.score * 10}%`, height: '100%', backgroundColor: 'var(--primary)' }} />
-                            </div>
+                    return (
+                      <div style={{ backgroundColor: 'var(--cream)', padding: '48px 40px', borderRadius: 'var(--radius-xl)', textAlign: 'center' }}>
+                        <div style={{ position: 'relative', width: '120px', height: '120px', margin: '0 auto 12px' }}>
+                          <svg viewBox="0 0 120 120" style={{ width: '120px', height: '120px', transform: 'rotate(-90deg)' }}>
+                            <circle cx="60" cy="60" r="52" fill="none" stroke="#e2e8f0" strokeWidth="10" />
+                            <circle cx="60" cy="60" r="52" fill="none" stroke="var(--primary)" strokeWidth="10" strokeDasharray={`${2 * Math.PI * 52 * ratio} ${2 * Math.PI * 52}`} strokeLinecap="round" />
+                          </svg>
+                          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                            <span style={{ fontSize: '32px', fontWeight: 800, color: 'var(--primary)', lineHeight: 1 }}>{avgScore10.toFixed(1)}</span>
+                            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>/ 10 điểm</span>
                           </div>
-                        ))}
-                      </div>
-
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '28px', textAlign: 'left' }}>
-                        <div style={{ padding: '20px', borderRadius: 'var(--radius-md)', backgroundColor: '#fff', border: '1px solid var(--border-color)' }}>
-                          <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--primary)', marginBottom: '12px' }}>💪 Điểm mạnh</h4>
-                          <ul style={{ fontSize: '13px', color: 'var(--text-main)', paddingLeft: '16px', lineHeight: 1.8 }}>
-                            <li>Trả lời đúng trọng tâm ở phần kiến thức chuyên môn.</li>
-                            <li>Diễn đạt mạch lạc, có cấu trúc rõ ràng.</li>
-                            <li>Thể hiện tư duy logic khi xử lý câu hỏi tình huống.</li>
-                          </ul>
                         </div>
-                        <div style={{ padding: '20px', borderRadius: 'var(--radius-md)', backgroundColor: '#fff', border: '1px solid var(--border-color)' }}>
-                          <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--primary)', marginBottom: '12px' }}>🌱 Cần cải thiện</h4>
-                          <ul style={{ fontSize: '13px', color: 'var(--text-main)', paddingLeft: '16px', lineHeight: 1.8 }}>
-                            <li>Bổ sung thêm ví dụ và số liệu thực tế trong câu trả lời.</li>
-                            <li>Rút gọn phần mở đầu để đi thẳng vào trọng tâm.</li>
-                            <li>Luyện thêm phần trả lời bằng giọng nói để tăng sự tự tin.</li>
-                          </ul>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--primary-accent)', backgroundColor: 'var(--primary-light)', padding: '4px 12px', borderRadius: 'var(--radius-full)' }}>• Kết quả buổi luyện tập</span>
+                        <h3 style={{ fontSize: '26px', fontWeight: 800, margin: '12px 0 8px', color: 'var(--primary)' }}>Điểm trung bình toàn buổi ({answeredCount}/{currentQuestions.length} câu đã trả lời)</h3>
+                        <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '28px' }}>Vị trí: {selectedPosition} · Doanh nghiệp: {selectedEnterprise} · Lĩnh vực: {selectedDomain}</p>
+
+                        {answeredCount > 0 ? (
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '24px', textAlign: 'left' }}>
+                            {answeredEntries.map(e => (
+                              <div key={e.idx} style={{ padding: '20px', borderRadius: 'var(--radius-md)', backgroundColor: '#fff', border: '1px solid var(--border-color)' }}>
+                                <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '8px', letterSpacing: '0.3px' }}>CÂU {e.idx + 1}</div>
+                                <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--primary)', marginBottom: '8px' }}>{(e.score / 10).toFixed(1)}</div>
+                                <div style={{ height: '4px', backgroundColor: '#e2e8f0', borderRadius: '2px', overflow: 'hidden' }}>
+                                  <div style={{ width: `${e.score}%`, height: '100%', backgroundColor: 'var(--primary)' }} />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '24px' }}>Bạn chưa trả lời câu nào trong buổi luyện tập này.</p>
+                        )}
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '28px', textAlign: 'left' }}>
+                          <div style={{ padding: '20px', borderRadius: 'var(--radius-md)', backgroundColor: '#fff', border: '1px solid var(--border-color)' }}>
+                            <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--primary)', marginBottom: '12px' }}>💪 Điểm mạnh</h4>
+                            <ul style={{ fontSize: '13px', color: 'var(--text-main)', paddingLeft: '16px', lineHeight: 1.8 }}>
+                              {topStrengths.length ? topStrengths.map((s, i) => <li key={i}>{s}</li>) : <li>Chưa có đủ dữ liệu để tổng hợp điểm mạnh.</li>}
+                            </ul>
+                          </div>
+                          <div style={{ padding: '20px', borderRadius: 'var(--radius-md)', backgroundColor: '#fff', border: '1px solid var(--border-color)' }}>
+                            <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--primary)', marginBottom: '12px' }}>🌱 Cần cải thiện</h4>
+                            <ul style={{ fontSize: '13px', color: 'var(--text-main)', paddingLeft: '16px', lineHeight: 1.8 }}>
+                              {topImprovements.length ? topImprovements.map((s, i) => <li key={i}>{s}</li>) : <li>Chưa có đủ dữ liệu để tổng hợp điểm cần cải thiện.</li>}
+                            </ul>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'center', gap: '12px' }}>
+                          <button
+                            onClick={() => {
+                              setInterviewAnswersList({});
+                              setInterviewFeedbackByQuestion({});
+                              setCurrentInterviewQuestionIdx(0);
+                              setInterviewAiFeedback(null);
+                              setInterviewStep('landing');
+                            }}
+                            style={{ padding: '12px 28px', borderRadius: 'var(--radius-full)', border: '1px solid var(--border-color)', backgroundColor: '#fff', fontWeight: 700, color: 'var(--primary)' }}
+                          >
+                            Luyện tập lại
+                          </button>
+                          <button onClick={() => setInterviewStep('select')} style={{ padding: '12px 28px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                            Chọn doanh nghiệp khác <ArrowRight size={16} />
+                          </button>
                         </div>
                       </div>
-
-                      <div style={{ display: 'flex', justifyContent: 'center', gap: '12px' }}>
-                        <button onClick={() => setInterviewStep('landing')} style={{ padding: '12px 28px', borderRadius: 'var(--radius-full)', border: '1px solid var(--border-color)', backgroundColor: '#fff', fontWeight: 700, color: 'var(--primary)' }}>
-                          Luyện tập lại
-                        </button>
-                        <button onClick={() => setInterviewStep('select')} style={{ padding: '12px 28px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                          Chọn doanh nghiệp khác <ArrowRight size={16} />
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                    );
+                  })()}
 
                 </div>
               )}
@@ -2312,7 +2440,7 @@ export default function App() {
                           </div>
                         </div>
 
-                        <button onClick={() => alert('Đã xuất PDF mẫu thành công!')} style={{ width: '100%', padding: '12px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 700, fontSize: '14px', cursor: 'pointer' }}>
+                        <button onClick={() => { setCvCompleted(true); alert('Đã xuất PDF mẫu thành công!'); }} style={{ width: '100%', padding: '12px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 700, fontSize: '14px', cursor: 'pointer' }}>
                           📥 Tải CV xuống dạng PDF
                         </button>
                       </div>
@@ -2336,12 +2464,24 @@ export default function App() {
 
                       <button
                         onClick={() => {
+                          // Real keyword-overlap check between what the user actually pasted
+                          // into the two boxes, using the same heuristic as the simulation
+                          // scorer — not a fixed canned result regardless of input.
+                          const jdKeywords = extractKeywordsFromText(atsJdInput);
+                          const normalizedCv = normalizeVietnameseText(atsCvInput);
+                          const matchedKeywords = jdKeywords.filter(k => normalizedCv.includes(k));
+                          const missingKeywords = jdKeywords.filter(k => !normalizedCv.includes(k));
+                          const score = jdKeywords.length ? Math.round((matchedKeywords.length / jdKeywords.length) * 100) : 0;
                           setAtsResult({
-                            score: 86,
-                            matchedKeywords: ['React', 'TypeScript', 'UX/UI', 'Tư duy giải quyết vấn đề', 'Web App'],
-                            missingKeywords: ['CI/CD Pipeline', 'Docker / Container', 'Automated Testing'],
-                            strengths: 'CV thể hiện rõ năng lực frontend vững vàng và kinh nghiệm làm dự án thực tế.',
-                            recommendations: 'Bổ sung thêm một số từ khóa kỹ thuật CI/CD và đo lường kết quả dự án bằng con số cụ thể.'
+                            score,
+                            matchedKeywords: matchedKeywords.slice(0, 10),
+                            missingKeywords: missingKeywords.slice(0, 10),
+                            strengths: matchedKeywords.length
+                              ? `CV của bạn đã khớp ${matchedKeywords.length}/${jdKeywords.length} từ khóa quan trọng trong JD.`
+                              : 'CV chưa khớp từ khóa quan trọng nào được trích từ JD — hãy kiểm tra lại nội dung dán vào.',
+                            recommendations: missingKeywords.length
+                              ? `Cân nhắc bổ sung các từ khóa còn thiếu: ${missingKeywords.slice(0, 6).join(', ')}.`
+                              : 'CV đã bao phủ tốt các từ khóa quan trọng được trích từ JD.'
                           });
                         }}
                         style={{ padding: '14px 28px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 700, fontSize: '15px', cursor: 'pointer', marginBottom: '24px' }}
@@ -2356,7 +2496,9 @@ export default function App() {
                               {atsResult.score}%
                             </div>
                             <div>
-                              <h4 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--primary)', margin: 0 }}>Đánh giá tỉ lệ khớp ATS: Rất cao</h4>
+                              <h4 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--primary)', margin: 0 }}>
+                                Đánh giá tỉ lệ khớp ATS: {atsResult.score >= 75 ? 'Rất cao' : atsResult.score >= 50 ? 'Khá' : atsResult.score >= 25 ? 'Trung bình' : 'Thấp'}
+                              </h4>
                               <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>CV của bạn phù hợp tốt với yêu cầu từ nhà tuyển dụng</div>
                             </div>
                           </div>
@@ -2394,24 +2536,37 @@ export default function App() {
                     <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>Lộ trình học tập & phát triển kỹ năng được thiết kế riêng dựa trên mục tiêu nghề nghiệp của bạn.</p>
                   </div>
 
-                  {/* Visual Roadmap Stages */}
+                  {/* Visual Roadmap Stages — each stage's progress is derived from the
+                      same real journey signals as the Overview tab, not fixed numbers. */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '28px' }}>
-                    {[
-                      { stage: 'GIAI ĐOẠN 1', title: 'Nền tảng chuyên môn', status: 'Hoàn thành 100%', progress: 100, color: '#16a34a', bg: '#dcfce7', desc: 'Kiến thức cốt lõi & công cụ ngành' },
-                      { stage: 'GIAI ĐOẠN 2', title: 'Thực hành Dự án', status: 'Đang học (65%)', progress: 65, color: 'var(--primary)', bg: 'var(--primary-light)', desc: 'Mô phỏng bài tập thực tế từ DN' },
-                      { stage: 'GIAI ĐOẠN 3', title: 'CV & Phỏng vấn AI', status: 'Tiếp theo (30%)', progress: 30, color: '#d97706', bg: '#fef3c7', desc: 'Tối ưu CV ATS & Luyện phỏng vấn' },
-                      { stage: 'GIAI ĐOẠN 4', title: 'Ứng tuyển Doanh nghiệp', status: 'Mục tiêu', progress: 0, color: '#6b7280', bg: '#f3f4f6', desc: 'Kết nối mạng lưới Mentor & HR' }
-                    ].map((st, i) => (
-                      <div key={i} style={{ backgroundColor: '#fff', padding: '20px', borderRadius: 'var(--radius-lg)', border: `2px solid ${st.progress > 0 ? st.color : 'var(--border-color)'}`, boxShadow: 'var(--shadow-sm)' }}>
-                        <span style={{ fontSize: '10px', fontWeight: 800, padding: '2px 8px', borderRadius: '6px', backgroundColor: st.bg, color: st.color, letterSpacing: '0.5px' }}>{st.stage}</span>
-                        <h4 style={{ fontSize: '15px', fontWeight: 800, margin: '10px 0 4px', color: 'var(--text-main)' }}>{st.title}</h4>
-                        <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '12px' }}>{st.desc}</p>
-                        <div style={{ height: '6px', backgroundColor: '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
-                          <div style={{ width: `${st.progress}%`, height: '100%', backgroundColor: st.color }} />
-                        </div>
-                        <div style={{ fontSize: '11px', fontWeight: 700, color: st.color, marginTop: '6px', textAlign: 'right' }}>{st.status}</div>
-                      </div>
-                    ))}
+                    {(() => {
+                      const stage1 = Math.round(((careerTestCompleted ? 1 : 0) + (roadmapEngaged ? 1 : 0)) / 2 * 100);
+                      const stage2 = simulationDone ? 100 : 0;
+                      const stage3 = Math.round(((cvCompleted ? 1 : 0) + (interviewPracticeCompleted ? 1 : 0)) / 2 * 100);
+                      const stage4 = referralCount > 0 ? 100 : 0;
+                      const stages = [
+                        { stage: 'GIAI ĐOẠN 1', title: 'Nền tảng chuyên môn', progress: stage1, desc: 'Khám phá bản thân & lộ trình AI cá nhân hóa' },
+                        { stage: 'GIAI ĐOẠN 2', title: 'Thực hành Dự án', progress: stage2, desc: 'Mô phỏng bài tập thực tế từ DN' },
+                        { stage: 'GIAI ĐOẠN 3', title: 'CV & Phỏng vấn AI', progress: stage3, desc: 'Tối ưu CV ATS & Luyện phỏng vấn' },
+                        { stage: 'GIAI ĐOẠN 4', title: 'Ứng tuyển Doanh nghiệp', progress: stage4, desc: 'Kết nối mạng lưới Mentor & HR' }
+                      ];
+                      return stages.map((st, i) => {
+                        const color = st.progress === 100 ? '#16a34a' : st.progress > 0 ? 'var(--primary)' : '#6b7280';
+                        const bg = st.progress === 100 ? '#dcfce7' : st.progress > 0 ? 'var(--primary-light)' : '#f3f4f6';
+                        const status = st.progress === 100 ? 'Hoàn thành 100%' : st.progress > 0 ? `Đang học (${st.progress}%)` : 'Mục tiêu';
+                        return (
+                          <div key={i} style={{ backgroundColor: '#fff', padding: '20px', borderRadius: 'var(--radius-lg)', border: `2px solid ${st.progress > 0 ? color : 'var(--border-color)'}`, boxShadow: 'var(--shadow-sm)' }}>
+                            <span style={{ fontSize: '10px', fontWeight: 800, padding: '2px 8px', borderRadius: '6px', backgroundColor: bg, color, letterSpacing: '0.5px' }}>{st.stage}</span>
+                            <h4 style={{ fontSize: '15px', fontWeight: 800, margin: '10px 0 4px', color: 'var(--text-main)' }}>{st.title}</h4>
+                            <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '12px' }}>{st.desc}</p>
+                            <div style={{ height: '6px', backgroundColor: '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
+                              <div style={{ width: `${st.progress}%`, height: '100%', backgroundColor: color }} />
+                            </div>
+                            <div style={{ fontSize: '11px', fontWeight: 700, color, marginTop: '6px', textAlign: 'right' }}>{status}</div>
+                          </div>
+                        );
+                      });
+                    })()}
                   </div>
 
                   {/* AI Assistant Chatbox */}
@@ -2465,7 +2620,9 @@ export default function App() {
                 </div>
               )}
 
-              {/* CHỨNG CHỈ TAB */}
+              {/* CHỨNG CHỈ TAB — gated on the real journey progress (UK.md 9.1/9.2):
+                  locked & grayed out until 6/6 bước hoàn thành, unlocked with real
+                  issue date once earned. */}
               {studentTab === 'cert' && (
                 <div className="animate-fade-in">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'end', marginBottom: '20px', gap: '16px', flexWrap: 'wrap' }}>
@@ -2473,34 +2630,50 @@ export default function App() {
                       <h2 style={{ fontSize: '28px', fontWeight: 900, marginBottom: '6px', color: 'var(--primary)' }}>Chứng chỉ của tôi</h2>
                       <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>Thành quả được trình bày theo phong cách chứng nhận cao cấp, rõ hạng và rõ giá trị.</p>
                     </div>
-                    <span style={{ padding: '6px 14px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--primary-light)', color: 'var(--primary)', fontWeight: 700, fontSize: '12px', border: '1px solid var(--primary-border)' }}>1 chứng chỉ đã hoàn thành</span>
+                    <span style={{ padding: '6px 14px', borderRadius: 'var(--radius-full)', backgroundColor: journeyPercent === 100 ? 'var(--primary-light)' : '#f3f4f6', color: journeyPercent === 100 ? 'var(--primary)' : 'var(--text-muted)', fontWeight: 700, fontSize: '12px', border: '1px solid var(--border-color)' }}>
+                      {journeyPercent === 100 ? '1 chứng chỉ đã hoàn thành' : `${journeyCompletedCount}/${journeySteps.length} bước — chưa mở khóa`}
+                    </span>
                   </div>
 
-                  <div style={{ position: 'relative', overflow: 'hidden', background: 'linear-gradient(135deg, #0f3d27 0%, #14532d 45%, #1f7a46 100%)', padding: '28px', borderRadius: '28px', boxShadow: '0 24px 48px rgba(15, 61, 39, 0.18)', color: '#fff', border: '1px solid rgba(255,255,255,0.12)' }}>
-                    <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at top right, rgba(255,255,255,0.2), transparent 35%)' }} />
-                    <div style={{ position: 'relative', display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '24px', alignItems: 'center' }}>
-                      <div>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 12px', borderRadius: '999px', backgroundColor: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.16)', fontSize: '12px', fontWeight: 700, marginBottom: '18px' }}>
-                          <Award size={14} /> Verified by NAVIX AI
-                        </div>
-                        <div style={{ fontSize: '12px', letterSpacing: '1.8px', opacity: 0.85, marginBottom: '10px' }}>CERTIFICATE OF COMPLETION</div>
-                        <h3 style={{ fontSize: '32px', fontWeight: 900, lineHeight: 1.1, margin: '0 0 8px' }}>Career Exploration - NAVIX</h3>
-                        <p style={{ margin: '0 0 18px', fontSize: '15px', lineHeight: 1.7, maxWidth: '620px', color: 'rgba(255,255,255,0.88)' }}>Chứng nhận hoàn thành hành trình khám phá nghề nghiệp, phân tích RIASEC và xây dựng nền tảng hướng nghiệp cùng NAVIX AI.</p>
-                        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                          <span style={{ padding: '8px 12px', borderRadius: '999px', backgroundColor: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.14)', fontSize: '12px', fontWeight: 700 }}>Ngày cấp: 20/05/2025</span>
-                          <span style={{ padding: '8px 12px', borderRadius: '999px', backgroundColor: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.14)', fontSize: '12px', fontWeight: 700 }}>Điểm chứng nhận: 89/100</span>
-                          <span style={{ padding: '8px 12px', borderRadius: '999px', backgroundColor: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.14)', fontSize: '12px', fontWeight: 700 }}>Top 12% Learners</span>
-                        </div>
+                  {journeyPercent < 100 ? (
+                    <div style={{ backgroundColor: '#fff', padding: '40px', borderRadius: '28px', border: '1px dashed var(--border-color)', textAlign: 'center' }}>
+                      <Award size={40} color="var(--text-muted)" style={{ marginBottom: '12px' }} />
+                      <h3 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '8px' }}>Chứng chỉ chưa được mở khóa</h3>
+                      <p style={{ fontSize: '14px', color: 'var(--text-muted)', maxWidth: '480px', margin: '0 auto 20px' }}>
+                        Hoàn thành đủ 6 bước trong "Tiến độ hành trình" ({journeyCompletedCount}/{journeySteps.length} hiện tại) để mở khóa chứng chỉ Career Exploration - NAVIX.
+                      </p>
+                      <div style={{ display: 'flex', justifyContent: 'center', gap: '12px' }}>
+                        <button disabled style={{ padding: '12px 24px', borderRadius: 'var(--radius-full)', backgroundColor: '#e5e7eb', color: '#9ca3af', fontWeight: 700, cursor: 'not-allowed' }}>Tải chứng chỉ</button>
+                        <button onClick={() => setStudentTab('overview')} style={{ padding: '12px 24px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 700 }}>Về Tổng quan</button>
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'center' }}>
-                        <div style={{ width: '170px', height: '170px', borderRadius: '50%', background: 'radial-gradient(circle at 35% 35%, #fef3c7 0%, #fde68a 35%, #f59e0b 100%)', boxShadow: 'inset 0 0 0 10px rgba(255,255,255,0.26), 0 16px 30px rgba(0,0,0,0.18)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', color: '#0f3d27', border: '6px solid rgba(255,255,255,0.2)' }}>
-                          <Award size={34} />
-                          <div style={{ fontSize: '12px', fontWeight: 900, letterSpacing: '1px', marginTop: '8px' }}>NAVIX SEAL</div>
-                          <div style={{ fontSize: '11px', fontWeight: 700, opacity: 0.8 }}>Career Ready</div>
+                    </div>
+                  ) : (
+                    <div style={{ position: 'relative', overflow: 'hidden', background: 'linear-gradient(135deg, #0f3d27 0%, #14532d 45%, #1f7a46 100%)', padding: '28px', borderRadius: '28px', boxShadow: '0 24px 48px rgba(15, 61, 39, 0.18)', color: '#fff', border: '1px solid rgba(255,255,255,0.12)' }}>
+                      <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at top right, rgba(255,255,255,0.2), transparent 35%)' }} />
+                      <div style={{ position: 'relative', display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '24px', alignItems: 'center' }}>
+                        <div>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 12px', borderRadius: '999px', backgroundColor: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.16)', fontSize: '12px', fontWeight: 700, marginBottom: '18px' }}>
+                            <Award size={14} /> Verified by NAVIX AI
+                          </div>
+                          <div style={{ fontSize: '12px', letterSpacing: '1.8px', opacity: 0.85, marginBottom: '10px' }}>CERTIFICATE OF COMPLETION</div>
+                          <h3 style={{ fontSize: '32px', fontWeight: 900, lineHeight: 1.1, margin: '0 0 8px' }}>Career Exploration - NAVIX</h3>
+                          <p style={{ margin: '0 0 18px', fontSize: '15px', lineHeight: 1.7, maxWidth: '620px', color: 'rgba(255,255,255,0.88)' }}>Chứng nhận hoàn thành hành trình khám phá nghề nghiệp, phân tích RIASEC và xây dựng nền tảng hướng nghiệp cùng NAVIX AI.</p>
+                          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                            <span style={{ padding: '8px 12px', borderRadius: '999px', backgroundColor: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.14)', fontSize: '12px', fontWeight: 700 }}>Ngày cấp: {new Date().toLocaleDateString('vi-VN')}</span>
+                            <span style={{ padding: '8px 12px', borderRadius: '999px', backgroundColor: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.14)', fontSize: '12px', fontWeight: 700 }}>Hoàn thành: {journeyPercent}/100</span>
+                          </div>
+                          <button onClick={() => alert('Đã xuất chứng chỉ PDF thành công!')} style={{ marginTop: '20px', padding: '10px 20px', borderRadius: 'var(--radius-full)', backgroundColor: '#fef3c7', color: '#14532d', fontWeight: 800 }}>Tải chứng chỉ</button>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'center' }}>
+                          <div style={{ width: '170px', height: '170px', borderRadius: '50%', background: 'radial-gradient(circle at 35% 35%, #fef3c7 0%, #fde68a 35%, #f59e0b 100%)', boxShadow: 'inset 0 0 0 10px rgba(255,255,255,0.26), 0 16px 30px rgba(0,0,0,0.18)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', color: '#0f3d27', border: '6px solid rgba(255,255,255,0.2)' }}>
+                            <Award size={34} />
+                            <div style={{ fontSize: '12px', fontWeight: 900, letterSpacing: '1px', marginTop: '8px' }}>NAVIX SEAL</div>
+                            <div style={{ fontSize: '11px', fontWeight: 700, opacity: 0.8 }}>Career Ready</div>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               )}
 
@@ -2654,7 +2827,7 @@ export default function App() {
                 </nav>
               </div>
 
-              <button onClick={() => { setCurrentUser(null); setCurrentPage('home'); }} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', borderRadius: 'var(--radius-md)', color: '#ef4444', fontSize: '14px', fontWeight: 600 }}>
+              <button onClick={() => { supabase.auth.signOut(); setCurrentPage('home'); }} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', borderRadius: 'var(--radius-md)', color: '#ef4444', fontSize: '14px', fontWeight: 600 }}>
                 <LogOut size={18} />
                 {!sidebarCollapsed && <span>Đăng xuất</span>}
               </button>
@@ -3227,7 +3400,7 @@ export default function App() {
                         onClick={() => {
                           if (!canContinue) return;
                           if (currentQuestionIdx < totalQ - 1) setCurrentQuestionIdx(currentQuestionIdx + 1);
-                          else setCareerStep('result');
+                          else { setCareerStep('result'); setCareerTestCompleted(true); }
                         }}
                         disabled={!canContinue}
                         style={{
@@ -3313,26 +3486,37 @@ export default function App() {
             <button onClick={() => setShowActivitiesModal(false)} style={{ position: 'absolute', top: '16px', right: '16px', width: '32px', height: '32px', borderRadius: '50%', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={16} /></button>
             <h3 style={{ fontSize: '20px', fontWeight: 800, marginBottom: '4px', color: 'var(--primary)' }}>Tất cả hoạt động</h3>
             <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '24px' }}>Lịch sử hành trình học tập & thực hành của bạn tại NAVIX.</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              {[
-                { icon: '✅', label: 'Hoàn thành bài đánh giá nghề nghiệp RIASEC', time: 'Hôm nay, 09:12', score: '89%', color: '#dcfce7', iconColor: 'var(--primary)' },
-                { icon: '💼', label: 'Hoàn thành bài mô phỏng – Social Media Campaign (NovaTech)', time: '2 ngày trước, 14:30', score: '8.4/10', color: '#dcfce7', iconColor: 'var(--primary)' },
-                { icon: '🗺️', label: 'Hoàn thành lộ trình AI cá nhân hóa – Giai đoạn 1', time: '5 ngày trước, 10:00', score: '100%', color: '#dcfce7', iconColor: 'var(--primary)' },
-                { icon: '🎤', label: 'Luyện tập phỏng vấn – Nhân sự / HR Generalist', time: '6 ngày trước, 16:45', score: '8.1/10', color: '#fef3c7', iconColor: '#d97706' },
-                { icon: '📄', label: 'Tạo CV và phân tích ATS – Đạt 86% phù hợp', time: '1 tuần trước, 11:20', score: '86%', color: '#dbeafe', iconColor: '#2563eb' },
-                { icon: '🎯', label: 'Khám phá bản đồ nghề nghiệp – Brand Marketing', time: '1 tuần trước, 09:00', score: 'Hoàn thành', color: '#f3e8ff', iconColor: '#7c3aed' },
-                { icon: '🏆', label: 'Nhận chứng chỉ Career Exploration – NAVIX', time: '10 ngày trước', score: 'Cấp chứng chỉ', color: '#dcfce7', iconColor: 'var(--primary)' }
-              ].map((act, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 16px', backgroundColor: 'var(--bg-main)', borderRadius: '10px' }}>
-                  <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: act.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', flexShrink: 0 }}>{act.icon}</div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-main)', marginBottom: '2px' }}>{act.label}</div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{act.time}</div>
-                  </div>
-                  <span style={{ fontSize: '12px', fontWeight: 700, padding: '3px 10px', borderRadius: 'var(--radius-full)', backgroundColor: act.color, color: act.iconColor, whiteSpace: 'nowrap' }}>{act.score}</span>
+            {(() => {
+              const activityDetails: Record<string, { icon: string; label: string; score: string; color: string; iconColor: string }> = {
+                explore: { icon: '✅', label: 'Hoàn thành bài đánh giá nghề nghiệp RIASEC', score: 'Hoàn thành', color: '#dcfce7', iconColor: 'var(--primary)' },
+                roadmap: { icon: '🗺️', label: 'Trò chuyện với AI để dựng lộ trình cá nhân hóa', score: 'Hoàn thành', color: '#f3e8ff', iconColor: '#7c3aed' },
+                simulation: { icon: '💼', label: 'Hoàn thành bài mô phỏng việc làm', score: `${simBestScoreDisplay}`, color: '#dcfce7', iconColor: 'var(--primary)' },
+                cv: { icon: '📄', label: 'Xuất CV cá nhân', score: 'Hoàn thành', color: '#dbeafe', iconColor: '#2563eb' },
+                interview: { icon: '🎤', label: `Luyện tập phỏng vấn – ${selectedDomain} / ${selectedPosition}`, score: 'Hoàn thành', color: '#fef3c7', iconColor: '#d97706' },
+                referral: { icon: '🎁', label: 'Giới thiệu bạn bè tham gia NAVIX', score: `${referralCount} lượt`, color: '#dcfce7', iconColor: 'var(--primary)' }
+              };
+              const rows = journeySteps.filter(s => s.done).map(s => activityDetails[s.key]);
+              if (journeyPercent === 100) {
+                rows.push({ icon: '🏆', label: 'Nhận chứng chỉ Career Exploration – NAVIX', score: 'Cấp chứng chỉ', color: '#dcfce7', iconColor: 'var(--primary)' });
+              }
+              if (!rows.length) {
+                return <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Chưa có hoạt động nào được ghi nhận trong phiên này.</p>;
+              }
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  {rows.map((act, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 16px', backgroundColor: 'var(--bg-main)', borderRadius: '10px' }}>
+                      <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: act.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', flexShrink: 0 }}>{act.icon}</div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-main)', marginBottom: '2px' }}>{act.label}</div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Trong phiên này</div>
+                      </div>
+                      <span style={{ fontSize: '12px', fontWeight: 700, padding: '3px 10px', borderRadius: 'var(--radius-full)', backgroundColor: act.color, color: act.iconColor, whiteSpace: 'nowrap' }}>{act.score}</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              );
+            })()}
           </div>
         </div>
       )}
@@ -3586,8 +3770,8 @@ export default function App() {
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 130, padding: '24px' }}>
           <div className="animate-fade-in" style={{ backgroundColor: '#fff', borderRadius: 'var(--radius-xl)', maxWidth: '400px', width: '100%', padding: '32px', textAlign: 'center' }}>
             <h3 style={{ fontSize: '20px', fontWeight: 800, marginBottom: '12px' }}>Xác thực Email</h3>
-            <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '24px' }}>Mã OTP đã được gửi đến email của bạn. Vui lòng nhập mã để xác thực.</p>
-            
+            <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '24px' }}>Mã OTP đã được gửi đến <strong>{otpPendingEmail}</strong>. Vui lòng nhập mã để xác thực.</p>
+
             <input
               type="text"
               value={otpInput}
@@ -3596,7 +3780,7 @@ export default function App() {
               maxLength={6}
               style={{ width: '100%', padding: '12px 14px', borderRadius: 'var(--radius-md)', border: otpError ? '2px solid #dc2626' : '1px solid var(--border-color)', fontSize: '16px', fontWeight: 700, textAlign: 'center', letterSpacing: '2px', marginBottom: '12px' }}
             />
-            
+
             {otpError && (
               <div style={{ fontSize: '13px', color: '#dc2626', marginBottom: '16px', fontWeight: 600 }}>
                 {otpError}
@@ -3604,12 +3788,14 @@ export default function App() {
             )}
 
             <div style={{ display: 'flex', gap: '12px' }}>
-              <button onClick={() => { setShowOTPModal(false); setOtpInput(''); setOtpError(''); }} style={{ flex: 1, padding: '12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', backgroundColor: '#fff', fontWeight: 600 }}>Hủy</button>
-              <button onClick={verifyOTP} style={{ flex: 1, padding: '12px', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 700 }}>Xác thực</button>
+              <button onClick={() => { setShowOTPModal(false); setOtpInput(''); setOtpError(''); setOtpPendingEmail(''); }} style={{ flex: 1, padding: '12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', backgroundColor: '#fff', fontWeight: 600 }}>Hủy</button>
+              <button onClick={verifyOTP} disabled={otpVerifying} style={{ flex: 1, padding: '12px', borderRadius: 'var(--radius-md)', backgroundColor: otpVerifying ? '#9ca3af' : 'var(--primary)', color: '#fff', fontWeight: 700, cursor: otpVerifying ? 'not-allowed' : 'pointer' }}>
+                {otpVerifying ? 'Đang xác thực...' : 'Xác thực'}
+              </button>
             </div>
 
             <div style={{ marginTop: '12px', fontSize: '12px', color: 'var(--text-muted)' }}>
-              Mã OTP có hiệu lực trong 10 phút
+              Mã OTP có hiệu lực trong 1 giờ (tùy cấu hình dự án Supabase)
             </div>
           </div>
         </div>
