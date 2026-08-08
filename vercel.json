@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm --workspace navix-app run build",
-  "installCommand": "npm ci",
+  "buildCommand": "cd navix-app && npm ci && npm run build",
+  "installCommand": "cd navix-app && npm ci",
   "outputDirectory": "navix-app/dist"
 }
